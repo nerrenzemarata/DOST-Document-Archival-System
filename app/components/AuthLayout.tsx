@@ -12,7 +12,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       <header className="dost-header">
         <div className="logo-section">
           <div className="logo-circle">
-            <Image src="/Logo1.png" alt="DOST Logo" width={48} height={48} />
+            <Image src="/Logo1.png" alt="DOST Logo" width={36} height={36} />
           </div>
           <div className="header-text">
             <div className="header-subtitle">Provincial Science and Technology Office in Misamis Oriental</div>
