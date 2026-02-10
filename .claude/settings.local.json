@@ -10,7 +10,9 @@
       "WebFetch(domain:polygons.openstreetmap.fr)",
       "Bash(node -e:*)",
       "WebFetch(domain:en.wikipedia.org)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(npx prisma:*)",
+      "Bash(pg_isready:*)"
     ]
   }
 }

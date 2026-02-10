@@ -131,7 +131,21 @@ function MapComponent({ activePrograms, activeDistrict }: { activePrograms: stri
     return <div className="maps-loading">Loading map...</div>;
   }
 
-  const { MapContainer, TileLayer, Polygon, Marker, Tooltip } = components;
+  const { MapContainer, TileLayer, Polygon, Marker, Popup, useMap } = components;
+
+  // Invalidate map size when container resizes (e.g., sidebar expand/collapse)
+  function ResizeHandler() {
+    const map = useMap();
+    useEffect(() => {
+      const container = map.getContainer();
+      const observer = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      observer.observe(container);
+      return () => observer.disconnect();
+    }, [map]);
+    return null;
+  }
 
   // SETUP pin - uses uploaded SVG logo (white logo on colored background)
   const setupIcon = leaflet.divIcon({
@@ -218,6 +232,7 @@ function MapComponent({ activePrograms, activeDistrict }: { activePrograms: stri
       style={{ width: '100%', height: '100%' }}
       zoomControl={false}
     >
+      <ResizeHandler />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -232,22 +247,38 @@ function MapComponent({ activePrograms, activeDistrict }: { activePrograms: stri
       />
       {showSetup && filterByDistrict(setupPins, activeDistrict).map((pin, idx) => (
         <Marker key={`setup-${idx}`} position={[pin.lat, pin.lng]} icon={setupIcon}>
-          <Tooltip>{pin.label}</Tooltip>
+          <Popup>
+            <a href={`/setup/${(idx % 8) + 1}`} style={{ color: '#00838f', fontWeight: 600, textDecoration: 'none' }}>
+              {pin.label}
+            </a>
+          </Popup>
         </Marker>
       ))}
       {showCest && filterByDistrict(cestPins, activeDistrict).map((pin, idx) => (
         <Marker key={`cest-${idx}`} position={[pin.lat, pin.lng]} icon={cestIcon}>
-          <Tooltip>{pin.label}</Tooltip>
+          <Popup>
+            <a href={`/setup/${(idx % 8) + 1}`} style={{ color: '#2e7d32', fontWeight: 600, textDecoration: 'none' }}>
+              {pin.label}
+            </a>
+          </Popup>
         </Marker>
       ))}
       {showSscp && filterByDistrict(sscpPins, activeDistrict).map((pin, idx) => (
         <Marker key={`sscp-${idx}`} position={[pin.lat, pin.lng]} icon={sscpIcon}>
-          <Tooltip>{pin.label}</Tooltip>
+          <Popup>
+            <a href={`/setup/${(idx % 8) + 1}`} style={{ color: '#707070', fontWeight: 600, textDecoration: 'none' }}>
+              {pin.label}
+            </a>
+          </Popup>
         </Marker>
       ))}
       {showLgia && filterByDistrict(lgiaPins, activeDistrict).map((pin, idx) => (
         <Marker key={`lgia-${idx}`} position={[pin.lat, pin.lng]} icon={lgiaIcon}>
-          <Tooltip>{pin.label}</Tooltip>
+          <Popup>
+            <a href={`/setup/${(idx % 8) + 1}`} style={{ color: '#D4A017', fontWeight: 600, textDecoration: 'none' }}>
+              {pin.label}
+            </a>
+          </Popup>
         </Marker>
       ))}
     </MapContainer>
