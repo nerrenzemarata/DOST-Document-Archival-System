@@ -595,14 +595,19 @@ export default function SetupPage() {
                 <div className="modal-form-group">
                   <label>Contact Number<span className="required">*</span></label>
                   {contactNumbers.map((num, idx) => (
-                    <input
-                      key={idx}
-                      type="text"
-                      placeholder="Enter contact number"
-                      value={num}
-                      onChange={(e) => handleContactChange(idx, e.target.value)}
-                      className={idx > 0 ? 'mt-8' : ''}
-                    />
+                    <div key={idx} className={`multi-input-row ${idx > 0 ? 'mt-8' : ''}`}>
+                      <input
+                        type="text"
+                        placeholder="Enter contact number"
+                        value={num}
+                        onChange={(e) => handleContactChange(idx, e.target.value)}
+                      />
+                      {contactNumbers.length > 1 && (
+                        <button type="button" className="remove-input-btn" onClick={() => removeContact(idx)}>
+                          <Icon icon="mdi:close" width={14} height={14} />
+                        </button>
+                      )}
+                    </div>
                   ))}
                   <button type="button" className="add-email-btn" onClick={addContact}>
                     <Icon icon="mdi:plus" width={14} height={14} />
@@ -616,14 +621,19 @@ export default function SetupPage() {
                 <div className="modal-form-group">
                   <label>Email<span className="required">*</span></label>
                   {emails.map((email, idx) => (
-                    <input
-                      key={idx}
-                      type="email"
-                      placeholder="Enter email"
-                      value={email}
-                      onChange={(e) => handleEmailChange(idx, e.target.value)}
-                      className={idx > 0 ? 'mt-8' : ''}
-                    />
+                    <div key={idx} className={`multi-input-row ${idx > 0 ? 'mt-8' : ''}`}>
+                      <input
+                        type="email"
+                        placeholder="Enter email"
+                        value={email}
+                        onChange={(e) => handleEmailChange(idx, e.target.value)}
+                      />
+                      {emails.length > 1 && (
+                        <button type="button" className="remove-input-btn" onClick={() => removeEmail(idx)}>
+                          <Icon icon="mdi:close" width={14} height={14} />
+                        </button>
+                      )}
+                    </div>
                   ))}
                   <button type="button" className="add-email-btn" onClick={addEmail}>
                     <Icon icon="mdi:plus" width={14} height={14} />
