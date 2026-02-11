@@ -45,9 +45,11 @@ model User {
   fullName     String
   contactNo    String?
   birthday     DateTime? @db.Date
-  role         Role      @default(STAFF)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  role              Role      @default(STAFF)
+  resetOtp          String?
+  resetOtpExpiresAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@map("users")
 }

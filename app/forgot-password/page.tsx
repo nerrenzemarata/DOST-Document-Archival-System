@@ -8,56 +8,160 @@ import AuthLayout from '../components/AuthLayout';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
-  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [showOtpModal, setShowOtpModal] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [code, setCode] = useState(['', '', '', '']);
+  const [otp, setOtp] = useState(['', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [error, setError] = useState('');
+  const [otpError, setOtpError] = useState('');
+  const [resetError, setResetError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowVerificationModal(true);
-  };
-
-  const handleCodeChange = (index: number, value: string) => {
-    if (value.length <= 1) {
-      const newCode = [...code];
-      newCode[index] = value;
-      setCode(newCode);
-
-      if (value && index < 3) {
-        inputRefs.current[index + 1]?.focus();
+    setError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error);
+      } else {
+        setShowOtpModal(true);
       }
+    } catch {
+      setError('Something went wrong');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === 'Backspace' && !code[index] && index > 0) {
-      inputRefs.current[index - 1]?.focus();
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value.slice(-1);
+    setOtp(newOtp);
+    if (value && index < 3) {
+      otpRefs.current[index + 1]?.focus();
     }
   };
 
-  const handleVerificationSubmit = () => {
-    setShowVerificationModal(false);
-    setShowResetModal(true);
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
   };
 
-  const handleVerificationBack = () => {
-    setShowVerificationModal(false);
-    setCode(['', '', '', '']);
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 4);
+    if (pasted.length === 4) {
+      setOtp(pasted.split(''));
+      otpRefs.current[3]?.focus();
+    }
   };
 
-  const handleResetSubmit = () => {
-    setShowResetModal(false);
-    setShowSuccessModal(true);
+  const handleVerifyOtp = async () => {
+    const otpCode = otp.join('');
+    if (otpCode.length !== 4) {
+      setOtpError('Please enter the 4-digit code');
+      return;
+    }
+    setOtpError('');
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp: otpCode }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOtpError(data.error);
+      } else {
+        setShowOtpModal(false);
+        setShowResetModal(true);
+      }
+    } catch {
+      setOtpError('Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setResendLoading(true);
+    setOtpError('');
+    try {
+      const res = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOtpError(data.error);
+      } else {
+        setOtp(['', '', '', '']);
+        otpRefs.current[0]?.focus();
+        setOtpError('');
+      }
+    } catch {
+      setOtpError('Failed to resend code');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
+  const handleResetSubmit = async () => {
+    setResetError('');
+    if (newPassword !== confirmPassword) {
+      setResetError('Passwords do not match');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setResetError('Password must be at least 6 characters');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp: otp.join(''), newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResetError(data.error);
+      } else {
+        setShowResetModal(false);
+        setShowSuccessModal(true);
+      }
+    } catch {
+      setResetError('Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpBack = () => {
+    setShowOtpModal(false);
+    setOtp(['', '', '', '']);
+    setOtpError('');
   };
 
   const handleResetBack = () => {
     setShowResetModal(false);
-    setShowVerificationModal(true);
+    setResetError('');
   };
 
   const handleOkay = () => {
@@ -71,7 +175,7 @@ export default function ForgotPasswordPage() {
     <AuthLayout>
       <div className="bg-white rounded-[18px] shadow-[0_10px_40px_rgba(0,0,0,0.2),0_4px_12px_rgba(0,0,0,0.1)] px-[18px] py-3.5 w-full max-w-[290px] max-h-[85vh] overflow-y-auto z-10 relative text-center">
         <h2 className="text-[17px] font-bold text-primary mb-0.5 text-center">Forgot Password</h2>
-        <p className="text-center text-[10px] text-[#666] mb-2.5">Check your email for the link</p>
+        <p className="text-center text-[10px] text-[#666] mb-2.5">Enter your email to receive a verification code</p>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-[7px]">
@@ -86,54 +190,64 @@ export default function ForgotPasswordPage() {
             />
           </div>
 
-          <button type="submit" className="w-full py-[7px] bg-accent text-white border-none rounded-md text-[11px] font-semibold mt-1.5 cursor-pointer transition-colors duration-200 hover:bg-accent-hover active:translate-y-px">
-            Send Verification
+          {error && <p className="text-red-500 text-[10px] mb-1">{error}</p>}
+
+          <button type="submit" disabled={loading} className="w-full py-[7px] bg-accent text-white border-none rounded-md text-[11px] font-semibold mt-1.5 cursor-pointer transition-colors duration-200 hover:bg-accent-hover active:translate-y-px disabled:opacity-50">
+            {loading ? 'Sending...' : 'Send Code'}
           </button>
         </form>
 
         <Link href="/" className="block mt-5 text-accent no-underline text-sm font-medium text-center hover:underline">Back</Link>
       </div>
 
-      {showVerificationModal && (
+      {/* OTP Verification Modal */}
+      {showOtpModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
           <div className="bg-white rounded-[30px] shadow-[0_10px_40px_rgba(0,0,0,0.3),0_4px_12px_rgba(0,0,0,0.15)] py-10 px-[35px] w-full max-w-[350px] text-center">
             <h2 className="text-xl font-bold text-primary mb-2.5">Verification Code</h2>
-            <p className="text-[13px] text-[#666] mb-[25px]">Enter the code we sent you.</p>
+            <p className="text-[13px] text-[#666] mb-[25px]">Enter the 4-digit code sent to your email</p>
 
-            <div className="flex justify-center gap-2.5 mb-[25px]">
-              {code.map((digit, index) => (
+            <div className="flex justify-center gap-3 mb-6" onPaste={handleOtpPaste}>
+              {otp.map((digit, index) => (
                 <input
                   key={index}
-                  ref={(el) => { inputRefs.current[index] = el; }}
+                  ref={(el) => { otpRefs.current[index] = el; }}
                   type="text"
+                  inputMode="numeric"
                   maxLength={1}
                   value={digit}
-                  onChange={(e) => handleCodeChange(index, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
-                  className="w-[50px] h-[50px] text-center text-xl font-semibold border border-[#d0d0d0] rounded-[10px] outline-none transition-all duration-200 focus:border-accent focus:shadow-[0_0_0_3px_rgba(0,174,239,0.1)]"
+                  onChange={(e) => handleOtpChange(index, e.target.value)}
+                  onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                  className="w-14 h-14 text-center text-2xl font-bold border-2 border-[#d0d0d0] rounded-lg focus:outline-none focus:border-primary focus:shadow-[0_0_0_3px_rgba(20,97,132,0.1)] transition-all duration-200"
                 />
               ))}
             </div>
 
-            <button className="w-full py-[13px] bg-accent text-white border-none rounded-[10px] text-[15px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-accent-hover" onClick={handleVerificationSubmit}>
-              Submit
+            {otpError && <p className="text-red-500 text-[12px] mb-2.5">{otpError}</p>}
+
+            <button disabled={loading} className="w-full py-[13px] bg-accent text-white border-none rounded-[10px] text-[15px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-accent-hover disabled:opacity-50" onClick={handleVerifyOtp}>
+              {loading ? 'Verifying...' : 'Verify Code'}
             </button>
-            <button className="block w-full mt-[15px] py-2.5 bg-transparent border-none text-accent text-sm font-medium cursor-pointer hover:underline" onClick={handleVerificationBack}>
+            <button disabled={resendLoading} className="block w-full mt-[10px] py-2.5 bg-transparent border-none text-accent text-sm font-medium cursor-pointer hover:underline disabled:opacity-50" onClick={handleResendOtp}>
+              {resendLoading ? 'Resending...' : 'Resend Code'}
+            </button>
+            <button className="block w-full mt-[5px] py-2.5 bg-transparent border-none text-[#666] text-sm font-medium cursor-pointer hover:underline" onClick={handleOtpBack}>
               Back
             </button>
           </div>
         </div>
       )}
 
+      {/* Reset Password Modal */}
       {showResetModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
           <div className="bg-white rounded-[30px] shadow-[0_10px_40px_rgba(0,0,0,0.3),0_4px_12px_rgba(0,0,0,0.15)] py-10 px-[35px] w-full max-w-[350px] text-center">
             <h2 className="text-xl font-bold text-primary mb-2.5">Reset Password</h2>
-            <p className="text-[13px] text-[#666] mb-[25px]">Check your email for the link</p>
+            <p className="text-[13px] text-[#666] mb-[25px]">Enter your new password</p>
 
             <div className="text-left mb-2.5">
               <div className="mb-[15px]">
-                <label htmlFor="newPassword" className="block text-[10px] text-[#666] mb-0.5 font-medium">Password</label>
+                <label htmlFor="newPassword" className="block text-[10px] text-[#666] mb-0.5 font-medium">New Password</label>
                 <input
                   type="password"
                   id="newPassword"
@@ -155,8 +269,10 @@ export default function ForgotPasswordPage() {
               </div>
             </div>
 
-            <button className="w-full py-[13px] bg-accent text-white border-none rounded-[10px] text-[15px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-accent-hover" onClick={handleResetSubmit}>
-              Send Verification
+            {resetError && <p className="text-red-500 text-[12px] mb-2.5">{resetError}</p>}
+
+            <button disabled={loading} className="w-full py-[13px] bg-accent text-white border-none rounded-[10px] text-[15px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-accent-hover disabled:opacity-50" onClick={handleResetSubmit}>
+              {loading ? 'Resetting...' : 'Reset Password'}
             </button>
             <button className="block w-full mt-[15px] py-2.5 bg-transparent border-none text-accent text-sm font-medium cursor-pointer hover:underline" onClick={handleResetBack}>
               Back
@@ -165,6 +281,7 @@ export default function ForgotPasswordPage() {
         </div>
       )}
 
+      {/* Success Modal */}
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
           <div className="bg-white rounded-[30px] shadow-[0_10px_40px_rgba(0,0,0,0.3),0_4px_12px_rgba(0,0,0,0.15)] py-10 px-[35px] w-full max-w-[350px] text-center">

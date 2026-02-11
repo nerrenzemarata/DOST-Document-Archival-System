@@ -12,7 +12,16 @@
       "WebFetch(domain:en.wikipedia.org)",
       "Bash(ls:*)",
       "Bash(npx prisma:*)",
-      "Bash(pg_isready:*)"
+      "Bash(pg_isready:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nRemove Windows-only lightningcss-win32-x64-msvc from dependencies\n\nFixes Vercel deployment failing with EBADPLATFORM error since\nVercel runs on Linux and cannot install Windows-only native binaries.\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(node --version:*)",
+      "Bash(npm pack:*)",
+      "Bash(tar -xzf:*)",
+      "Bash(psql:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

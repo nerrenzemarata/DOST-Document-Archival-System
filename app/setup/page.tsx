@@ -106,6 +106,7 @@ export default function SetupPage() {
     projectStatus: '', prioritySector: '', companyLogo: null as File | null,
   });
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const handleFormChange = (field: string, value: string) => {
     setFormData(prev => {
@@ -114,15 +115,19 @@ export default function SetupPage() {
       if (field === 'municipality') { updated.barangay = ''; }
       return updated;
     });
+    if (formErrors[field]) {
+      setFormErrors(prev => { const next = { ...prev }; delete next[field]; return next; });
+    }
   };
 
   const municipalities = formData.province && addressData[formData.province] ? Object.keys(addressData[formData.province]) : [];
   const barangays = formData.province && formData.municipality && addressData[formData.province]?.[formData.municipality] ? addressData[formData.province][formData.municipality] : [];
 
-  const handleEmailChange = (index: number, value: string) => { const updated = [...emails]; updated[index] = value; setEmails(updated); };
+  const handleEmailChange = (index: number, value: string) => { const updated = [...emails]; updated[index] = value; setEmails(updated); if (formErrors.emails) setFormErrors(prev => { const next = { ...prev }; delete next.emails; return next; }); };
   const addEmail = () => { setEmails(prev => [...prev, '']); };
   const removeEmail = (index: number) => { setEmails(prev => prev.filter((_, i) => i !== index)); };
-  const handleContactChange = (index: number, value: string) => { const updated = [...contactNumbers]; updated[index] = value; setContactNumbers(updated); };
+  const handleContactChange = (index: number, value: string) => { const cleaned = value.replace(/\D/g, '').slice(0, 11); const updated = [...contactNumbers]; updated[index] = cleaned; setContactNumbers(updated); if (formErrors.contactNumbers) setFormErrors(prev => { const next = { ...prev }; delete next.contactNumbers; return next; }); };
+  const isContactValid = (num: string) => num.length === 11 && num.startsWith('09');
   const addContact = () => { setContactNumbers(prev => [...prev, '']); };
   const removeContact = (index: number) => { setContactNumbers(prev => prev.filter((_, i) => i !== index)); };
 
@@ -133,6 +138,36 @@ export default function SetupPage() {
   };
 
   const handleSaveProject = () => {
+    const errors: Record<string, string> = {};
+
+    if (!formData.projectTitle.trim()) errors.projectTitle = 'Project title is required';
+    if (!formData.fund.trim()) errors.fund = 'Fund is required';
+    if (!formData.typeOfFund) errors.typeOfFund = 'Type of fund is required';
+    if (!formData.firmSize) errors.firmSize = 'Firm size is required';
+    if (!formData.province) errors.province = 'Province is required';
+    if (!formData.municipality) errors.municipality = 'Municipality is required';
+    if (!formData.barangay) errors.barangay = 'Barangay is required';
+    if (!formData.cooperatorName.trim()) errors.cooperatorName = 'Cooperator\'s name is required';
+    if (!formData.projectStatus) errors.projectStatus = 'Project status is required';
+    if (!formData.prioritySector) errors.prioritySector = 'Priority sector is required';
+
+    if (!contactNumbers.some(c => c.trim())) {
+      errors.contactNumbers = 'At least one contact number is required';
+    } else if (contactNumbers.some(c => c.trim() && !isContactValid(c))) {
+      errors.contactNumbers = 'All contact numbers must be 11 digits starting with 09';
+    }
+    if (!emails.some(e => e.trim())) {
+      errors.emails = 'At least one email is required';
+    } else if (emails.some(e => e.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim()))) {
+      errors.emails = 'Please enter valid email addresses';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+
+    setFormErrors({});
     setShowAddModal(false);
     setFormData({ projectTitle: '', fund: '', typeOfFund: '', firmSize: '', province: '', municipality: '', barangay: '', coordinates: '', firmName: '', firmType: '', cooperatorName: '', projectStatus: '', prioritySector: '', companyLogo: null });
     setEmails(['']); setContactNumbers(['']);
@@ -168,7 +203,7 @@ export default function SetupPage() {
               <input type="text" className="w-full h-full pl-[50px] pr-[25px] border border-[#e0e0e0] rounded-[25px] text-[15px] bg-[#f5f5f5] transition-all duration-200 focus:outline-none focus:border-primary focus:bg-white focus:shadow-[0_2px_8px_rgba(20,97,132,0.1)] placeholder:text-[#999]" placeholder="Search here" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
             </div>
           </div>
-          <button className="flex items-center gap-2 py-3 px-5 bg-accent text-white border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-colors duration-200 whitespace-nowrap hover:bg-accent-hover" onClick={() => setShowAddModal(true)}>
+          <button className="flex items-center gap-2 py-3 px-5 bg-accent text-white border-none rounded-[10px] text-sm font-semibold cursor-pointer transition-colors duration-200 whitespace-nowrap hover:bg-accent-hover" onClick={() => { setShowAddModal(true); setFormErrors({}); }}>
             <Icon icon="mdi:plus" width={20} height={20} />
             Add New Project
           </button>
@@ -265,32 +300,36 @@ export default function SetupPage() {
               {/* Project Title */}
               <div className="flex flex-col gap-1 w-full">
                 <label className="text-[13px] font-semibold text-[#333]">Project Title<span className="text-[#dc3545] ml-0.5">*</span></label>
-                <input type="text" placeholder="Enter project title" value={formData.projectTitle} onChange={(e) => handleFormChange('projectTitle', e.target.value)} className={modalInputCls} />
+                <input type="text" placeholder="Enter project title" value={formData.projectTitle} onChange={(e) => handleFormChange('projectTitle', e.target.value)} className={`${modalInputCls} ${formErrors.projectTitle ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`} />
+                {formErrors.projectTitle && <span className="text-[#dc3545] text-[11px]">{formErrors.projectTitle}</span>}
               </div>
 
               {/* Fund Row */}
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Fund<span className="text-[#dc3545] ml-0.5">*</span></label>
-                  <input type="text" placeholder="Enter fund" value={formData.fund} onChange={(e) => handleFormChange('fund', e.target.value)} className={modalInputCls} />
+                  <input type="text" placeholder="Enter fund" value={formData.fund} onChange={(e) => handleFormChange('fund', e.target.value)} className={`${modalInputCls} ${formErrors.fund ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`} />
+                  {formErrors.fund && <span className="text-[#dc3545] text-[11px]">{formErrors.fund}</span>}
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Type of Fund<span className="text-[#dc3545] ml-0.5">*</span></label>
-                  <select value={formData.typeOfFund} onChange={(e) => handleFormChange('typeOfFund', e.target.value)} className={modalSelectCls}>
+                  <select value={formData.typeOfFund} onChange={(e) => handleFormChange('typeOfFund', e.target.value)} className={`${modalSelectCls} ${formErrors.typeOfFund ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`}>
                     <option value="">Select Type</option>
                     <option value="GIA">GIA</option>
                     <option value="Loan">Loan</option>
                     <option value="Grant">Grant</option>
                   </select>
+                  {formErrors.typeOfFund && <span className="text-[#dc3545] text-[11px]">{formErrors.typeOfFund}</span>}
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Firm Size<span className="text-[#dc3545] ml-0.5">*</span></label>
-                  <select value={formData.firmSize} onChange={(e) => handleFormChange('firmSize', e.target.value)} className={modalSelectCls}>
+                  <select value={formData.firmSize} onChange={(e) => handleFormChange('firmSize', e.target.value)} className={`${modalSelectCls} ${formErrors.firmSize ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`}>
                     <option value="">Select Size</option>
                     <option value="Small">Small</option>
                     <option value="Medium">Medium</option>
                     <option value="Large">Large</option>
                   </select>
+                  {formErrors.firmSize && <span className="text-[#dc3545] text-[11px]">{formErrors.firmSize}</span>}
                 </div>
               </div>
 
@@ -298,24 +337,27 @@ export default function SetupPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Province<span className="text-[#dc3545] ml-0.5">*</span></label>
-                  <select value={formData.province} onChange={(e) => handleFormChange('province', e.target.value)} className={modalSelectCls}>
+                  <select value={formData.province} onChange={(e) => handleFormChange('province', e.target.value)} className={`${modalSelectCls} ${formErrors.province ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`}>
                     <option value="">Select Province</option>
                     {Object.keys(addressData).map(prov => (<option key={prov} value={prov}>{prov}</option>))}
                   </select>
+                  {formErrors.province && <span className="text-[#dc3545] text-[11px]">{formErrors.province}</span>}
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Municipality/City<span className="text-[#dc3545] ml-0.5">*</span></label>
-                  <select value={formData.municipality} onChange={(e) => handleFormChange('municipality', e.target.value)} disabled={!formData.province} className={modalSelectCls}>
+                  <select value={formData.municipality} onChange={(e) => handleFormChange('municipality', e.target.value)} disabled={!formData.province} className={`${modalSelectCls} ${formErrors.municipality ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`}>
                     <option value="">Select Municipality</option>
                     {municipalities.map(mun => (<option key={mun} value={mun}>{mun}</option>))}
                   </select>
+                  {formErrors.municipality && <span className="text-[#dc3545] text-[11px]">{formErrors.municipality}</span>}
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Barangay<span className="text-[#dc3545] ml-0.5">*</span></label>
-                  <select value={formData.barangay} onChange={(e) => handleFormChange('barangay', e.target.value)} disabled={!formData.municipality} className={modalSelectCls}>
+                  <select value={formData.barangay} onChange={(e) => handleFormChange('barangay', e.target.value)} disabled={!formData.municipality} className={`${modalSelectCls} ${formErrors.barangay ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`}>
                     <option value="">Select Barangay</option>
                     {barangays.map(brgy => (<option key={brgy} value={brgy}>{brgy}</option>))}
                   </select>
+                  {formErrors.barangay && <span className="text-[#dc3545] text-[11px]">{formErrors.barangay}</span>}
                 </div>
               </div>
 
@@ -346,20 +388,25 @@ export default function SetupPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Cooperator&apos;s Name<span className="text-[#dc3545] ml-0.5">*</span></label>
-                  <input type="text" placeholder="Enter cooperator's name" value={formData.cooperatorName} onChange={(e) => handleFormChange('cooperatorName', e.target.value)} className={modalInputCls} />
+                  <input type="text" placeholder="Enter cooperator's name" value={formData.cooperatorName} onChange={(e) => handleFormChange('cooperatorName', e.target.value)} className={`${modalInputCls} ${formErrors.cooperatorName ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`} />
+                  {formErrors.cooperatorName && <span className="text-[#dc3545] text-[11px]">{formErrors.cooperatorName}</span>}
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Contact Number<span className="text-[#dc3545] ml-0.5">*</span></label>
                   {contactNumbers.map((num, idx) => (
-                    <div key={idx} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-2' : ''}`}>
-                      <input type="text" placeholder="Enter contact number" value={num} onChange={(e) => handleContactChange(idx, e.target.value)} className={`${modalInputCls} flex-1`} />
-                      {contactNumbers.length > 1 && (
-                        <button type="button" className="w-[22px] h-[22px] min-w-[22px] bg-[#f5f5f5] border border-[#ddd] rounded-full flex items-center justify-center cursor-pointer text-[#c62828] p-0 transition-all duration-200 hover:bg-[#fce4ec] hover:border-[#c62828]" onClick={() => removeContact(idx)}>
-                          <Icon icon="mdi:close" width={14} height={14} />
-                        </button>
-                      )}
+                    <div key={idx} className={idx > 0 ? 'mt-2' : ''}>
+                      <div className="flex items-center gap-1.5">
+                        <input type="text" placeholder="e.g. 09123456789" value={num} onChange={(e) => handleContactChange(idx, e.target.value)} className={`${modalInputCls} flex-1 ${num.length > 0 ? (isContactValid(num) ? 'border-green-600! shadow-[0_0_0_2px_rgba(22,163,74,0.1)]!' : 'border-red-600! shadow-[0_0_0_2px_rgba(220,38,38,0.1)]!') : formErrors.contactNumbers ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`} />
+                        {contactNumbers.length > 1 && (
+                          <button type="button" className="w-[22px] h-[22px] min-w-[22px] bg-[#f5f5f5] border border-[#ddd] rounded-full flex items-center justify-center cursor-pointer text-[#c62828] p-0 transition-all duration-200 hover:bg-[#fce4ec] hover:border-[#c62828]" onClick={() => removeContact(idx)}>
+                            <Icon icon="mdi:close" width={14} height={14} />
+                          </button>
+                        )}
+                      </div>
+                      {num.length > 0 && !isContactValid(num) && <span className="text-red-600 text-[11px] mt-0.5 block">Must be 11 digits starting with 09</span>}
                     </div>
                   ))}
+                  {formErrors.contactNumbers && <span className="text-[#dc3545] text-[11px]">{formErrors.contactNumbers}</span>}
                   <button type="button" className="inline-flex items-center gap-1 bg-transparent border-none text-accent text-xs font-semibold cursor-pointer p-0 py-1 mt-1 font-[inherit] hover:text-accent-hover hover:underline" onClick={addContact}>
                     <Icon icon="mdi:plus" width={14} height={14} /> Add More Number
                   </button>
@@ -372,7 +419,7 @@ export default function SetupPage() {
                   <label className="text-[13px] font-semibold text-[#333]">Email<span className="text-[#dc3545] ml-0.5">*</span></label>
                   {emails.map((email, idx) => (
                     <div key={idx} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-2' : ''}`}>
-                      <input type="email" placeholder="Enter email" value={email} onChange={(e) => handleEmailChange(idx, e.target.value)} className={`${modalInputCls} flex-1`} />
+                      <input type="email" placeholder="Enter email" value={email} onChange={(e) => handleEmailChange(idx, e.target.value)} className={`${modalInputCls} flex-1 ${formErrors.emails ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`} />
                       {emails.length > 1 && (
                         <button type="button" className="w-[22px] h-[22px] min-w-[22px] bg-[#f5f5f5] border border-[#ddd] rounded-full flex items-center justify-center cursor-pointer text-[#c62828] p-0 transition-all duration-200 hover:bg-[#fce4ec] hover:border-[#c62828]" onClick={() => removeEmail(idx)}>
                           <Icon icon="mdi:close" width={14} height={14} />
@@ -380,23 +427,26 @@ export default function SetupPage() {
                       )}
                     </div>
                   ))}
+                  {formErrors.emails && <span className="text-[#dc3545] text-[11px]">{formErrors.emails}</span>}
                   <button type="button" className="inline-flex items-center gap-1 bg-transparent border-none text-accent text-xs font-semibold cursor-pointer p-0 py-1 mt-1 font-[inherit] hover:text-accent-hover hover:underline" onClick={addEmail}>
                     <Icon icon="mdi:plus" width={14} height={14} /> Add More Email
                   </button>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Project Status<span className="text-[#dc3545] ml-0.5">*</span></label>
-                  <select value={formData.projectStatus} onChange={(e) => handleFormChange('projectStatus', e.target.value)} className={modalSelectCls}>
+                  <select value={formData.projectStatus} onChange={(e) => handleFormChange('projectStatus', e.target.value)} className={`${modalSelectCls} ${formErrors.projectStatus ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`}>
                     <option value="">Select Status</option>
                     <option value="Proposal">Proposal</option><option value="Approved">Approved</option><option value="Ongoing">Ongoing</option><option value="Withdrawal">Withdrawal</option><option value="Terminated">Terminated</option><option value="Graduated">Graduated</option>
                   </select>
+                  {formErrors.projectStatus && <span className="text-[#dc3545] text-[11px]">{formErrors.projectStatus}</span>}
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Priority Sector<span className="text-[#dc3545] ml-0.5">*</span></label>
-                  <select value={formData.prioritySector} onChange={(e) => handleFormChange('prioritySector', e.target.value)} className={modalSelectCls}>
+                  <select value={formData.prioritySector} onChange={(e) => handleFormChange('prioritySector', e.target.value)} className={`${modalSelectCls} ${formErrors.prioritySector ? 'border-[#dc3545]! focus:border-[#dc3545]! focus:shadow-[0_0_0_3px_rgba(220,53,69,0.1)]!' : ''}`}>
                     <option value="">Select Sector</option>
                     <option value="Food Processing">Food Processing</option><option value="Agriculture">Agriculture</option><option value="Aquaculture">Aquaculture</option><option value="Furniture">Furniture</option><option value="Gifts & Housewares">Gifts & Housewares</option>
                   </select>
+                  {formErrors.prioritySector && <span className="text-[#dc3545] text-[11px]">{formErrors.prioritySector}</span>}
                 </div>
               </div>
 
