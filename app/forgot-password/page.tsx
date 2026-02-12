@@ -249,7 +249,7 @@ export default function ForgotPasswordPage() {
             <p className="text-[12px] text-[#666] mb-[25px] text-left">Enter your new password</p>
 
             <div className="mb-[15px]">
-              <label htmlFor="newPassword" className="block text-[11px] text-[#666] mb-0.5 font-medium">New Password</label>
+              <label htmlFor="newPassword" className="block text-[11px] text-[#666] mb-0.5 font-medium text-left">New Password</label>
               <div className="relative">
                 <input
                   type={showNewPassword ? "text" : "password"}
@@ -270,7 +270,7 @@ export default function ForgotPasswordPage() {
 
 
               <div className="mb-[15px]">
-                <label htmlFor="confirmPassword" className="block text-[11px] text-[#666] mb-0.5 font-medium">Confirm Password</label>
+                <label htmlFor="confirmPassword" className="block text-[11px] text-[#666] mb-0.5 font-medium text-left">Confirm Password</label>
                 <div className="relative">
                   <input
                     type={showConfirmPassword ? "text" : "password"}
