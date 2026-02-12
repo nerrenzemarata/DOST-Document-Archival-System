@@ -23,7 +23,11 @@
       "Bash(psql:*)",
       "Bash(npx tsc:*)",
       "Bash(npm rebuild:*)",
-      "Bash(tar xzf:*)"
+      "Bash(tar xzf:*)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(npx --package=typescript tsc:*)",
+      "Bash(node /mnt/c/Users/Admin/Desktop/dost-nextjs/node_modules/typescript/bin/tsc:*)",
+      "Bash(node -p:*)"
     ]
   }
 }
