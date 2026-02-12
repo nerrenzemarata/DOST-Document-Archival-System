@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import AuthLayout from '../components/AuthLayout';
+import { Eye, EyeOff } from 'lucide-react';
 
 type FieldStatus = 'idle' | 'checking' | 'available' | 'taken';
 
@@ -13,6 +14,8 @@ export default function SignUpPage() {
   const [contactNo, setContactNo] = useState('');
   const [birthday, setBirthday] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [nameStatus, setNameStatus] = useState<FieldStatus>('idle');
@@ -101,16 +104,17 @@ export default function SignUpPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-[18px] shadow-[0_10px_40px_rgba(0,0,0,0.2),0_4px_12px_rgba(0,0,0,0.1)] px-[18px] py-3.5 w-full max-w-[290px] max-h-[85vh] overflow-y-auto z-10 relative max-[480px]:max-w-full max-[480px]:mx-2.5 max-[480px]:px-4 max-[480px]:rounded-[14px] max-[480px]:max-h-[80vh]">
-        <h2 className="text-[17px] font-bold text-primary mb-0.5 text-left max-[480px]:text-base">Sign Up</h2>
-        <p className="text-left text-[10px] text-[#666] mb-2.5 max-[480px]:text-[9px] max-[480px]:mb-2">
-          Have an account? <Link href="/" className="text-accent no-underline font-medium hover:underline">Click here</Link>
+      <div className="w-full h-full overflow-y-auto px-4 py-10">
+        <div className="bg-white rounded-[18px] shadow-[0_10px_40px_rgba(0,0,0,0.2),0_4px_12px_rgba(0,0,0,0.1)] px-[25px] py-2.5 w-full max-w-[290px] min-h-[85vh] max-h-[90vh] z-10 relative mt-18 mx-auto flex flex-col justify-center max-[480px]:max-w-full max-[480px]:mx-2.5 max-[480px]:px-4 max-[480px]:rounded-[14px] max-[480px]:min-h-[85vh] max-[480px]:max-h-[85vh] max-[480px]:mt-12 mb-8">
+        <h2 className="text-[19px] font-bold text-primary mb-0.5 text-left max-[480px]:text-base">Sign Up</h2>
+        <p className="text-left text-[12px] text-[#666] mb-2.5 max-[480px]:text-[9px] max-[480px]:mb-2">
+          Have an account? <Link href="/" className="text-accent no-underline font-bold hover:underline">Click here</Link>
         </p>
 
         <form onSubmit={handleSignUp}>
           {error && <div className="bg-red-100 text-red-600 py-2 px-3 rounded-lg text-xs mb-3.5 text-center max-[480px]:py-1.5 max-[480px]:px-2 max-[480px]:text-[10px] max-[480px]:mb-2">{error}</div>}
           <div className="mb-[7px] max-[480px]:mb-1.5">
-            <label htmlFor="fullname" className="block text-[10px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Fullname</label>
+            <label htmlFor="fullname" className="block text-[11px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Full Name</label>
             <input
               type="text"
               id="fullname"
@@ -125,7 +129,7 @@ export default function SignUpPage() {
           </div>
 
           <div className="mb-[7px] max-[480px]:mb-1.5">
-            <label htmlFor="email" className="block text-[10px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Email</label>
+            <label htmlFor="email" className="block text-[11px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Email</label>
             <input
               type="email"
               id="email"
@@ -140,7 +144,7 @@ export default function SignUpPage() {
           </div>
 
           <div className="mb-[7px] max-[480px]:mb-1.5">
-            <label htmlFor="contactNo" className="block text-[10px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Contact Number</label>
+            <label htmlFor="contactNo" className="block text-[11px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Contact Number</label>
             <input
               type="tel"
               id="contactNo"
@@ -158,7 +162,7 @@ export default function SignUpPage() {
           </div>
 
           <div className="mb-[7px] max-[480px]:mb-1.5">
-            <label htmlFor="birthday" className="block text-[10px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Birthday</label>
+            <label htmlFor="birthday" className="block text-[11px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Birthday</label>
             <input
               type="date"
               id="birthday"
@@ -169,15 +173,24 @@ export default function SignUpPage() {
           </div>
 
           <div className="mb-[7px] max-[480px]:mb-1.5">
-            <label htmlFor="password" className="block text-[10px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Password</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className={`${inputBase} ${passwordTouched ? (passwordValid ? 'border-green-600 shadow-[0_0_0_2px_rgba(22,163,74,0.1)]' : 'border-red-600 shadow-[0_0_0_2px_rgba(220,38,38,0.1)]') : ''}`}
-            />
+            <label htmlFor="password" className="block text-[11px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className={`${inputBase} pr-8 max-[480px]:pr-7 ${passwordTouched ? (passwordValid ? 'border-green-600 shadow-[0_0_0_2px_rgba(22,163,74,0.1)]' : 'border-red-600 shadow-[0_0_0_2px_rgba(220,38,38,0.1)]') : ''}`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666] hover:text-primary transition-colors max-[480px]:right-1.5"
+              >
+                {showPassword ? <EyeOff size={16} className="max-[480px]:w-3.5 max-[480px]:h-3.5" /> : <Eye size={16} className="max-[480px]:w-3.5 max-[480px]:h-3.5" />}
+              </button>
+            </div>
             {passwordTouched && !passwordValid && (
               <div className="flex flex-col gap-0.5 mt-1 max-[480px]:gap-px">
                 <span className={`pw-rule text-[10px] flex items-center gap-1 max-[480px]:text-[8px] ${hasMinLength ? 'pass text-green-600' : 'fail text-red-600'}`}>At least 8 characters</span>
@@ -188,21 +201,31 @@ export default function SignUpPage() {
           </div>
 
           <div className="mb-[7px] max-[480px]:mb-1.5">
-            <label htmlFor="confirmPassword" className="block text-[10px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Confirm Password</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              className={inputBase}
-            />
+            <label htmlFor="confirmPassword" className="block text-[11px] text-[#666] mb-0.5 font-medium max-[480px]:text-[9px] max-[480px]:mb-px">Confirm Password</label>
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                id="confirmPassword"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                className={`${inputBase} pr-8 max-[480px]:pr-7`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666] hover:text-primary transition-colors max-[480px]:right-1.5"
+              >
+                {showConfirmPassword ? <EyeOff size={16} className="max-[480px]:w-3.5 max-[480px]:h-3.5" /> : <Eye size={16} className="max-[480px]:w-3.5 max-[480px]:h-3.5" />}
+              </button>
+            </div>
           </div>
 
-          <button type="submit" className="w-full py-[7px] bg-accent text-white border-none rounded-md text-[11px] font-semibold mt-1.5 cursor-pointer transition-colors duration-200 hover:bg-accent-hover active:translate-y-px max-[480px]:py-1.5 max-[480px]:text-[10px] max-[480px]:rounded-[5px]" disabled={loading || nameStatus === 'taken' || emailStatus === 'taken' || (passwordTouched && !passwordValid) || (contactNo.length > 0 && !contactNoValid)}>
-            {loading ? 'Creating account...' : 'Sign Up'}
-          </button>
-        </form>
+            <button type="submit" className="w-full py-[7px] bg-accent text-white border-none rounded-md text-[12px] font-semibold mt-1.5 cursor-pointer transition-colors duration-200 hover:bg-accent-hover active:translate-y-px max-[480px]:py-1.5 max-[480px]:text-[10px] max-[480px]:rounded-[5px]" disabled={loading || nameStatus === 'taken' || emailStatus === 'taken' || (passwordTouched && !passwordValid) || (contactNo.length > 0 && !contactNoValid)}>
+              {loading ? 'Creating account...' : 'Sign Up'}
+            </button>
+          </form>
+        </div>
       </div>
 
       {modal && (

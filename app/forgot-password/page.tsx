@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Icon } from '@iconify/react';
+import { Eye, EyeOff } from 'lucide-react';
 import AuthLayout from '../components/AuthLayout';
 
 export default function ForgotPasswordPage() {
@@ -14,6 +15,8 @@ export default function ForgotPasswordPage() {
   const [otp, setOtp] = useState(['', '', '', '']);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [otpError, setOtpError] = useState('');
   const [resetError, setResetError] = useState('');
@@ -173,13 +176,13 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-[18px] shadow-[0_10px_40px_rgba(0,0,0,0.2),0_4px_12px_rgba(0,0,0,0.1)] px-[18px] py-3.5 w-full max-w-[290px] max-h-[85vh] overflow-y-auto z-10 relative text-center">
-        <h2 className="text-[17px] font-bold text-primary mb-0.5 text-center">Forgot Password</h2>
-        <p className="text-center text-[10px] text-[#666] mb-2.5">Enter your email to receive a verification code</p>
+      <div className="bg-white rounded-[18px] shadow-[0_10px_40px_rgba(0,0,0,0.2),0_4px_12px_rgba(0,0,0,0.1)] px-[25px] py-2.5 w-full max-w-[290px] min-h-[43vh] max-h-[50vh] overflow-y-auto z-10 relative text-center flex flex-col justify-center leading-[1.7]">
+        <h2 className="text-[18px] font-bold text-primary mb-0.5 text-left">Forgot Password</h2>
+        <p className="text-left text-[11px] text-[#666] mb-2.5">Enter your email to receive a verification code</p>
 
         <form onSubmit={handleSubmit}>
           <div className="mb-[7px]">
-            <label htmlFor="email" className="block text-[10px] text-[#666] mb-0.5 font-medium">Email</label>
+            <label htmlFor="email" className="block text-[11px] text-[#666] mb-0.5 font-medium text-left">Email</label>
             <input
               type="email"
               id="email"
@@ -192,12 +195,12 @@ export default function ForgotPasswordPage() {
 
           {error && <p className="text-red-500 text-[10px] mb-1">{error}</p>}
 
-          <button type="submit" disabled={loading} className="w-full py-[7px] bg-accent text-white border-none rounded-md text-[11px] font-semibold mt-1.5 cursor-pointer transition-colors duration-200 hover:bg-accent-hover active:translate-y-px disabled:opacity-50">
+          <button type="submit" disabled={loading} className="w-full py-[7px] bg-accent text-white border-none rounded-md text-[12px] font-semibold mt-2 cursor-pointer transition-colors duration-200 hover:bg-accent-hover active:translate-y-px disabled:opacity-50">
             {loading ? 'Sending...' : 'Send Code'}
           </button>
         </form>
 
-        <Link href="/" className="block mt-5 text-accent no-underline text-sm font-medium text-center hover:underline">Back</Link>
+        <Link href="/" className="block mt-2 text-accent no-underline text-[12px] font-bold text-center hover:underline">Back</Link>
       </div>
 
       {/* OTP Verification Modal */}
@@ -242,32 +245,49 @@ export default function ForgotPasswordPage() {
       {showResetModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
           <div className="bg-white rounded-[30px] shadow-[0_10px_40px_rgba(0,0,0,0.3),0_4px_12px_rgba(0,0,0,0.15)] py-10 px-[35px] w-full max-w-[350px] text-center">
-            <h2 className="text-xl font-bold text-primary mb-2.5">Reset Password</h2>
-            <p className="text-[13px] text-[#666] mb-[25px]">Enter your new password</p>
+            <h2 className="text-[19px] font-bold text-primary mb-2.5 text-left">Reset Password</h2>
+            <p className="text-[12px] text-[#666] mb-[25px] text-left">Enter your new password</p>
 
-            <div className="text-left mb-2.5">
-              <div className="mb-[15px]">
-                <label htmlFor="newPassword" className="block text-[10px] text-[#666] mb-0.5 font-medium">New Password</label>
+            <div className="mb-[15px]">
+              <label htmlFor="newPassword" className="block text-[11px] text-[#666] mb-0.5 font-medium">New Password</label>
+              <div className="relative">
                 <input
-                  type="password"
+                  type={showNewPassword ? "text" : "password"}
                   id="newPassword"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className={inputBase}
+                  className={`${inputBase} pr-8`}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666] hover:text-primary transition-colors"
+                >
+                  {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
               </div>
 
+
               <div className="mb-[15px]">
-                <label htmlFor="confirmPassword" className="block text-[10px] text-[#666] mb-0.5 font-medium">Confirm Password</label>
-                <input
-                  type="password"
-                  id="confirmPassword"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={inputBase}
-                />
+                <label htmlFor="confirmPassword" className="block text-[11px] text-[#666] mb-0.5 font-medium">Confirm Password</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    id="confirmPassword"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`${inputBase} pr-8`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[#666] hover:text-primary transition-colors"
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
-            </div>
 
             {resetError && <p className="text-red-500 text-[12px] mb-2.5">{resetError}</p>}
 
@@ -285,7 +305,9 @@ export default function ForgotPasswordPage() {
       {showSuccessModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100]">
           <div className="bg-white rounded-[30px] shadow-[0_10px_40px_rgba(0,0,0,0.3),0_4px_12px_rgba(0,0,0,0.15)] py-10 px-[35px] w-full max-w-[350px] text-center">
-            <Icon icon="lets-icons:check-fill" className="mb-[15px]" width={60} height={60} color="#22c55e" />
+            <div className="flex justify-center mb-[15px]">
+              <Icon icon="lets-icons:check-fill" width={60} height={60} color="#22c55e" />
+            </div>
             <h2 className="text-xl font-bold text-primary mb-2.5">Password Reset Successfully!</h2>
             <p className="text-[13px] text-[#666] mb-[25px]">You can now sign in with your new password</p>
             <button className="w-full py-[13px] bg-accent text-white border-none rounded-[10px] text-[15px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-accent-hover" onClick={handleOkay}>
