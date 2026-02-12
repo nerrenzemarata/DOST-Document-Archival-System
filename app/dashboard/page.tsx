@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Icon } from '@iconify/react';
 import DashboardLayout from '../components/DashboardLayout';
 import { NavItem } from '../components/Sidebar';
+import { CheckCircle2, AlertCircle } from 'lucide-react'
 
 interface BookingFormData {
   eventTitle: string;
@@ -93,6 +94,9 @@ export default function DashboardPage() {
   const [currentMonth, setCurrentMonth] = useState(1);
   const [currentYear, setCurrentYear] = useState(2026);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showBookingConfirm, setShowBookingConfirm] = useState(false);
+  const [bookingStatus, setBookingStatus] = useState<'success' | 'error'>('success');
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [bookingForm, setBookingForm] = useState<BookingFormData>({
     eventTitle: '',
     eventDate: '',
@@ -151,8 +155,50 @@ export default function DashboardPage() {
   };
 
   const handleConfirmBooking = () => {
-    console.log('Booking submitted:', bookingForm);
+  // Validate required fields
+  const errors: string[] = [];
+  
+  if (!bookingForm.eventTitle.trim()) {
+    errors.push('Event Title is required');
+  }
+  if (!bookingForm.eventDate) {
+    errors.push('Event Date is required');
+  }
+  if (!bookingForm.location.trim()) {
+    errors.push('Location is required');
+  }
+  if (!bookingForm.priorityLevel) {
+    errors.push('Priority Level is required');
+  }
+  
+  if (errors.length > 0) {
+    setValidationErrors(errors);
+    return;
+  }
+  
+  // Clear validation errors if validation passes
+  setValidationErrors([]);
+  
+  try {
+    // Create new event
+    const newEvent: CalendarEvent = {
+      id: events.length + 1,
+      title: bookingForm.eventTitle,
+      date: bookingForm.eventDate,
+      location: bookingForm.location,
+      bookedBy: bookingForm.bookedBy || 'N/A',
+      bookedService: bookingForm.bookedService || 'N/A',
+      bookedPersonnel: bookingForm.bookedPersonnel || 'N/A',
+      priority: bookingForm.priorityLevel as CalendarEvent['priority'],
+      staffInvolved: bookingForm.staffInvolved || 'N/A',
+    };
+    
+    setEvents(prev => [...prev, newEvent]);
+    setBookingStatus('success');
+    setShowBookingConfirm(true);
     setShowBookingModal(false);
+    
+    // Reset form
     setBookingForm({
       eventTitle: '',
       eventDate: '',
@@ -163,13 +209,19 @@ export default function DashboardPage() {
       bookedService: '',
       staffInvolved: '',
     });
-  };
+  } catch (error) {
+    setBookingStatus('error');
+    setShowBookingConfirm(true);
+  }
+};
+
 
   const closeBookingModal = () => {
-    setShowBookingModal(false);
-    setShowAddService(false);
-    setNewServiceName('');
-  };
+  setShowBookingModal(false);
+  setShowAddService(false);
+  setNewServiceName('');
+  setValidationErrors([]);
+};
 
   // Sort events: Today first, then Urgent/High/Normal for future dates, Done at bottom
   const sortedEvents = [...events].sort((a, b) => {
@@ -543,6 +595,21 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold text-primary mb-0.5">Book Appointment</h2>
             <p className="text-xs text-[#666] mb-4">Complete the form to confirm your appointment request.</p>
 
+            {validationErrors.length > 0 && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <Icon icon="mdi:alert-circle" width={18} height={18} className="text-red-500 mt-0.5 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-red-700 mb-1">Please fix the following errors:</p>
+                  <ul className="text-xs text-red-600 list-disc list-inside space-y-0.5">
+                    {validationErrors.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
             <div className="flex flex-col gap-3">
               <div>
                 <label className="block text-xs font-medium text-[#333] mb-1">
@@ -908,6 +975,39 @@ export default function DashboardPage() {
                 className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-lg hover:bg-red-600 transition-colors"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Booking Confirmation Modal */}
+      {showBookingConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[250]">
+          <div className="bg-white rounded-[10px] w-full max-w-[350px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.15)]">
+            <div className="flex items-center justify-center mx-auto mb-4 mt-3">
+              {bookingStatus === 'success' ? (
+                <Icon icon="bi:check-circle-fill" width={45} height={45} color="#14AE5C" />
+              ) : (
+                <div className="flex items-center justify-center w-16 h-16 rounded-full bg-red-100">
+                  <Icon icon="mdi:alert-circle" width={45} height={45} className="text-red-500" />
+                </div>
+              )}
+            </div>
+            <h3 className="text-[24px] font-bold text-center mb-2" style={{ color: '#146184' }}>
+              {bookingStatus === 'success' ? 'Booking Successful!' : 'Booking Failed'}
+            </h3>
+            <p className="text-[12px] text-center text-[#666] mb-6" style={{color: '#7B777C'}}>
+              {bookingStatus === 'success' 
+                ? 'Your appointment has been successfully booked and added to the calendar.' 
+                : 'There was an error processing your booking. Please try again.'}
+            </p>
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowBookingConfirm(false)}
+                className={`px-6 py-2 text-sm font-medium text-white rounded-lg transition-colors ${bookingStatus === 'success' ? 'bg-[#00AEEF] hover:bg-[#00AEEF]' : 'bg-red-500 hover:bg-red-600'}`}
+              >
+                Okay
               </button>
             </div>
           </div>
