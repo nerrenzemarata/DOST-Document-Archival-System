@@ -23,6 +23,7 @@ interface Project {
   fund: string | null;
   typeOfFund: string | null;
   assignee: string | null;
+  year: string | null;
   companyLogoUrl: string | null;
   createdAt: string;
 }
@@ -404,35 +405,37 @@ export default function ProjectDetailPage() {
             </button>
           </div>
 
-          {/* Project Content */}
-          <div className="flex gap-5 items-start">
-            <div className="w-[100px] h-[100px] min-w-[100px] rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
-              {/* Default circle for project logo - can upload image here */}
-              <Icon icon="mdi:store" width={48} height={48} color="#999" />
+        {/* Project Content */}
+        <div className="flex gap-5 items-start">
+          <div className="w-[100px] h-[100px] min-w-[100px] rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+            {/* Default circle for project logo - can upload image here */}
+            <Icon icon="mdi:store" width={48} height={48} color="#999" />
+          </div>
+          <div className="flex-1 flex gap-5">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 text-[13px] mb-1">
+                <span className="text-[#555] font-medium">{project.firm || '—'}</span>
+                <span className="text-[#ccc]">|</span>
+                <span className="text-[#555]">{project.firmSize || '—'}</span>
+              </div>
+              <h2 className="text-[18px] font-bold text-[#146184] m-0 mb-1 leading-[1.3]">{project.title}</h2>
+              <p className="text-[14px] text-[#555] m-0 mb-2">{project.typeOfFirm || ''}</p>
+              <div className="inline-block bg-[#ff9800] text-white text-[11px] font-semibold px-3 py-1 rounded-full mb-3">
+                Ongoing
+              </div>
             </div>
-            <div className="flex-1 flex gap-5">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 text-[13px] mb-1">
-                  <span className="text-[#555] font-medium">{project.firm || '—'}</span>
-                  <span className="text-[#ccc]">|</span>
-                  <span className="text-[#555]">{project.firmSize || '—'}</span>
-                </div>
-                <h2 className="text-[18px] font-bold text-[#146184] m-0 mb-1 leading-[1.3]">{project.title}</h2>
-                <p className="text-[14px] text-[#555] m-0 mb-2">{project.typeOfFirm || ''}</p>
-                <div className="inline-block bg-[#ff9800] text-white text-[11px] font-semibold px-3 py-1 rounded-full mb-3">
-                  Ongoing
-                </div>
-              </div>
-              <div className="[&_p]:my-1 [&_p]:text-[13px] [&_p]:text-[#555] [&_strong]:text-[#222] [&_strong]:font-semibold">
-                <p><strong>Cooperator's Name:</strong> {project.corporatorName || '—'}</p>
-                <p><strong>Address:</strong> {project.address || '—'}</p>
-                <p><strong>Priority Sector:</strong> {project.prioritySector || '—'}</p>
-                <p><strong>Assignee:</strong> {project.assignee || '—'}</p>
-                <p><strong>Date Published:</strong> {datePublished}</p>
-              </div>
+            <div className="[&_p]:my-1 [&_p]:text-[13px] [&_p]:text-[#555] [&_strong]:text-[#222] [&_strong]:font-semibold">
+              <p><strong>Cooperator&apos;s Name:</strong> {project.corporatorName || '—'}</p>
+              <p><strong>Address:</strong> {project.address || '—'}</p>
+              <p><strong>Priority Sector:</strong> {project.prioritySector || '—'}</p>
+              <p><strong>Assignee:</strong> {project.assignee || '—'}</p>
+              <p><strong>Date Published:</strong> {datePublished}</p>
             </div>
           </div>
         </div>
+      </div>
+  
+
 
         {/* Project Initiation */}
         <DocumentTable title="Project Initiation" docs={initiationDocs} projectId={id} phase="INITIATION" />
