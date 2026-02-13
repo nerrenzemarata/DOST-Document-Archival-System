@@ -7,6 +7,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import DashboardLayout from '../components/DashboardLayout';
 import 'leaflet/dist/leaflet.css';
+import Image from 'next/image';
 
 // Cascading address data: Province → Municipality → Barangays
 const addressData: Record<string, Record<string, string[]>> = {
@@ -446,20 +447,14 @@ export default function SetupPage() {
         {/* SETUP Header */}
         <div className="flex justify-between items-center bg-white py-[15px] px-[25px] rounded-[15px] mb-5 shadow-[0_2px_8px_rgba(0,0,0,0.05)] gap-[30px]">
           <div className="flex items-center gap-[15px]">
-            <div className="w-[50px] h-[50px] flex items-center justify-center">
-              <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="25" cy="25" r="23" stroke="#146184" strokeWidth="3" fill="none"/>
-                <circle cx="25" cy="25" r="15" stroke="#00AEEF" strokeWidth="3" fill="none"/>
-                <circle cx="25" cy="25" r="7" fill="#F5A623"/>
-                <path d="M25 2 L25 10" stroke="#146184" strokeWidth="3"/>
-                <path d="M25 40 L25 48" stroke="#146184" strokeWidth="3"/>
-                <path d="M2 25 L10 25" stroke="#146184" strokeWidth="3"/>
-                <path d="M40 25 L48 25" stroke="#146184" strokeWidth="3"/>
-              </svg>
-            </div>
             <div className="flex flex-col">
-              <h1 className="text-[28px] font-bold text-primary m-0 leading-none">SETUP 4.0</h1>
-              <p className="text-[10px] text-[#666] m-0 leading-[1.3]">Small Enterprise Technology<br/>Upgrading Program</p>
+              <Image 
+                src="/setup-4.0-logo.png" 
+                alt="SETUP 4.0 - Small Enterprise Technology Upgrading Program" 
+                width={160}
+                height={25}
+                style={{ width: '160px', height: 'auto' }}
+              />
             </div>
           </div>
           <div className="flex-1 flex justify-center items-center">
@@ -544,21 +539,21 @@ export default function SetupPage() {
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr>
-                  <th className="w-9 min-w-[36px] text-center py-3 px-2.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">
+                  <th className="w-5 min-w-[10px] text-left py-3 px-2.5 border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[10px] align-middle">
                     <input type="checkbox" className="w-4 h-4 accent-accent cursor-pointer" checked={selectedProjects.length === filteredProjects.length && filteredProjects.length > 0} onChange={(e) => setSelectedProjects(e.target.checked ? filteredProjects.map(p => p.id) : [])} />
                   </th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Code</th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Project Title</th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Firm</th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Type of Firm</th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Address</th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Corporator&apos;s Name</th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Contact No.</th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Email</th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Status</th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Priority Sector</th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Firm Size</th>
-                  <th className="py-3 px-2.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Assignee</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[10px] align-middle">Code</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[200px] align-middle">Project Title</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[150px] align-middle">Firm</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[120px] align-middle">Type of Firm</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[150px] align-middle">Address</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[150px] align-middle">Corporator&apos;s Name</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[50px] align-middle">Contact No.</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[30px] align-middle">Email</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[20px] align-middle">Status</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[100px] align-middle">Priority Sector</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[50px] align-middle">Firm Size</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[100px] align-middle">Assignee</th>
                 </tr>
               </thead>
               <tbody>
@@ -571,18 +566,18 @@ export default function SetupPage() {
                     <td className="w-9 min-w-[36px] text-center py-3 px-2.5 text-left border-b border-[#e0e0e0]">
                       <input type="checkbox" className="w-4 h-4 accent-accent cursor-pointer" checked={selectedProjects.includes(project.id)} onChange={(e) => setSelectedProjects(prev => e.target.checked ? [...prev, project.id] : prev.filter(id => id !== project.id))} />
                     </td>
-                    <td className="text-primary font-semibold whitespace-nowrap py-3 px-2.5 text-left border-b border-[#e0e0e0]">#{project.code}</td>
-                    <td className="max-w-[250px] text-[#333] font-medium whitespace-normal break-words py-3 px-2.5 text-left border-b border-[#e0e0e0]"><Link href={`/setup/${project.id}`} className="text-primary no-underline font-medium hover:text-accent hover:underline">{project.title}</Link></td>
-                    <td className="py-3 px-2.5 text-left border-b border-[#e0e0e0]">{project.firm}</td>
-                    <td className="py-3 px-2.5 text-left border-b border-[#e0e0e0]">{project.typeOfFirm && <span className="inline-block py-1 px-2.5 bg-[#fff3cd] text-[#856404] rounded-[15px] text-[11px] font-medium">{project.typeOfFirm}</span>}</td>
-                    <td className="py-3 px-2.5 text-left border-b border-[#e0e0e0]">{project.address}</td>
-                    <td className="py-3 px-2.5 text-left border-b border-[#e0e0e0]">{project.corporatorName}</td>
-                    <td className="py-3 px-2.5 text-left border-b border-[#e0e0e0]">{project.contactNumbers.join(', ')}</td>
-                    <td className="py-3 px-2.5 text-left border-b border-[#e0e0e0]">{project.emails.join(', ')}</td>
-                    <td className="py-3 px-2.5 text-left border-b border-[#e0e0e0]"><span className={`inline-block py-1 px-3 rounded-[15px] text-[11px] font-medium ${getStatusClass(project.status)}`}>{statusDisplay[project.status] || project.status}</span></td>
-                    <td className="py-3 px-2.5 text-left border-b border-[#e0e0e0]">{project.prioritySector}</td>
-                    <td className="py-3 px-2.5 text-left border-b border-[#e0e0e0]">{project.firmSize}</td>
-                    <td className="py-3 px-2.5 text-left border-b border-[#e0e0e0]">{project.assignee}</td>
+                    <td className="text-primary font-semibold whitespace-nowrap py-3 px-2 text-left border-b border-[#e0e0e0]">#{project.code}</td>
+                    <td className="max-w-[250px] text-[#333] font-medium whitespace-normal break-words py-3 px-2 text-left border-b border-[#e0e0e0]"><Link href={`/setup/${project.id}`} className="text-primary no-underline font-medium hover:text-accent hover:underline">{project.title}</Link></td>
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{project.firm}</td>
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{project.typeOfFirm && <span className="inline-block py-1 px-2.5 bg-[#fff3cd] text-[#856404] rounded-[15px] text-[11px] font-medium">{project.typeOfFirm}</span>}</td>
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{project.address}</td>
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{project.corporatorName}</td>
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{project.contactNumbers.join(', ')}</td>
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{project.emails.join(', ')}</td>
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]"><span className={`inline-block py-1 px-3 rounded-[15px] text-[11px] font-medium ${getStatusClass(project.status)}`}>{statusDisplay[project.status] || project.status}</span></td>
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{project.prioritySector}</td>
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{project.firmSize}</td>
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{project.assignee}</td>
                   </tr>
                 ))}
               </tbody>
