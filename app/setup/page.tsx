@@ -592,7 +592,7 @@ export default function SetupPage() {
                       <td className="max-w-[250px] text-[#333] font-medium whitespace-normal break-words py-3 px-2 text-left border-b border-[#e0e0e0]"><Link href={`/setup/${project.id}`} className="text-primary no-underline font-medium hover:text-accent hover:underline">{project.title}</Link></td>
                       <td className="py-3 px-1.5 text-center border-b border-[#e0e0e0]">
                         {project.companyLogoUrl ? (
-                          <img src={project.companyLogoUrl} alt="Logo" className="w-8 h-8 rounded-full object-cover inline-block" />
+                          <img src={project.companyLogoUrl} alt="Logo" className="w-8 h-8 rounded-full object-cover inline-block border-1 border-[#d0d0d0]" />
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-[#e3f2fd] flex items-center justify-center inline-flex">
                             <Icon icon="mdi:store" width={18} height={18} color="#146184" />
