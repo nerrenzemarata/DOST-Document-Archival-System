@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Icon } from '@iconify/react';
@@ -41,69 +41,127 @@ type DocRow = {
   id: number;
   label: string;
   type: 'item' | 'dropdown' | 'section' | 'note';
+  options?: string[];
+  subItems?: DocRow[];
 };
 
 const initiationDocs: DocRow[] = [
-  { id: 1, label: 'Cover Sheet (Quotation)', type: 'dropdown' },
-  { id: 2, label: 'Letter of Intent', type: 'item' },
-  { id: 3, label: 'DTI Registration', type: 'item' },
-  { id: 4, label: 'Business Permit', type: 'item' },
-  { id: 5, label: 'Sworn Affidavit of the Assignee(s)', type: 'item' },
-  { id: 6, label: 'ARA Certificate of Registration', type: 'item' },
+  { id: 1, label: 'Letter of Intent', type: 'item' },
+  { id: 2, label: 'Business Permit', type: 'item' },
+  { 
+    id: 3, 
+    label: 'Type of Business', 
+    type: 'dropdown',
+    options: ['Sole Proprietorship', 'Partnership', 'Corporation', 'Cooperative'],
+    subItems: [
+      { id: 301, label: 'DTI Registration', type: 'item' },
+      { id: 302, label: 'CDA/SEC Registration', type: 'item' },
+      { id: 303, label: 'Articles of Incorporation', type: 'item' },
+      { id: 304, label: 'Board Resolution', type: 'item' },
+    ]
+  },
+  { id: 5, label: 'Financial Statement', type: 'item' },
+  { id: 6, label: 'Sworn Affidavit of the Assignee(s)', type: 'item' },
   { id: 7, label: 'BIR Registrar to Operate as Processor', type: 'item' },
-  { id: 8, label: 'Marriage Contract', type: 'item' },
-  { id: 9, label: 'Bank Specifications', type: 'item' },
-  { id: 10, label: 'Notice of Expansion', type: 'item' },
-  { id: 11, label: 'TNA Form 1', type: 'item' },
-  { id: 12, label: 'TNA Form 2', type: 'item' },
-  { id: 0, label: 'Note: Notarize all Quotations', type: 'dropdown' },
-  { id: 13, label: 'Potential Evaluation', type: 'item' },
-  { id: 14, label: 'Internal Evaluation', type: 'item' },
-  { id: 15, label: 'Forward Form for Equipment', type: 'item' },
-  { id: 16, label: 'GMA Assessment', type: 'item' },
-  { id: 0, label: 'List of Attachments', type: 'dropdown' },
+  { id: 8, label: 'LBP Regular Current Account', type: 'item' },
+  { id: 9, label: 'Barangay Clearance', type: 'item' },
+  { id: 10, label: 'Bank Statements', type: 'item' },
+  { id: 11, label: 'Biodata of Proponent', type: 'item' },
+  { id: 12, label: 'TNA Form 1', type: 'item' },
+  { id: 13, label: 'TNA Form 2', type: 'item' },
+  { 
+    id: 0, 
+    label: 'Abstract of Quotation', 
+    type: 'dropdown',
+    options: ['Equipment', 'Non-equipment']
+  },
+  { id: 14, label: 'Project Proposal', type: 'item' },
+  { id: 15, label: 'Internal Evaluation (Date, PPT Presentation, Compliance Report)', type: 'item' },
+  { id: 16, label: 'External Evaluation (Date, PPT Presentation, Compliance Report)', type: 'item' },
+  { id: 17, label: 'Hazard Hunter PH Assessment', type: 'item' },
+  { id: 18, label: 'GAD Assessment', type: 'item' },
+  { id: 19, label: 'Executive Summary (word template for input)', type: 'item' },
+  { 
+    id: 0, 
+    label: 'List of Intervention', 
+    type: 'dropdown'
+  },
 ];
 
 const implementationDocs: DocRow[] = [
-  { id: 1, label: 'Checklist', type: 'item' },
+  { id: 1, label: 'Pre-PIS', type: 'item' },
   { id: 2, label: 'Approval Letter', type: 'item' },
-  { id: 3, label: 'Confirmation of Agreement', type: 'item' },
+  { 
+    id: 3, 
+    label: 'Memorandum of Agreement', 
+    type: 'dropdown',
+    options: ['Main MOA', 'Supplemental MOA']
+  },
   { id: 0, label: 'PHASE 1', type: 'section' },
   { id: 4, label: 'Approved Amount for Release', type: 'item' },
-  { id: 5, label: 'Sub-Provincial Sector Approval (SPSA)', type: 'item' },
-  { id: 6, label: 'Project Cost', type: 'item' },
-  { id: 7, label: 'Authority to Pay, Landed Charges of Equipment, Deposit of Goods', type: 'item' },
+  { 
+    id: 5, 
+    label: 'Fund Release Date', 
+    type: 'dropdown',
+    options: ['DV', 'ORS']
+  },
+  { id: 6, label: 'Project Code', type: 'item' },
+  { 
+    id: 7, 
+    label: 'Authority to Tag', 
+    type: 'dropdown',
+    options: ['Tagging of Account', 'Tagging of Funds']
+  },
   { id: 8, label: 'Official Receipt of DOST Financial Assistance', type: 'item' },
-  { id: 9, label: 'Packaging Requirement', type: 'item' },
-  { id: 0, label: 'MIE', type: 'section' },
-  { id: 10, label: 'Consumable Purchase Order', type: 'item' },
-  { id: 11, label: 'Supplier Recommendation Purchase', type: 'item' },
-  { id: 12, label: 'Unloading Schedule', type: 'dropdown' },
-  { id: 13, label: 'Wholesale Payment for Equipment', type: 'item' },
-  { id: 14, label: 'Wholesale Payment for Supplies', type: 'item' },
-  { id: 0, label: 'DRE', type: 'section' },
-  { id: 15, label: 'DRE', type: 'item' },
-  { id: 16, label: 'DRE', type: 'item' },
+  { id: 9, label: 'Untagging Requirement', type: 'item' },
+  { id: 0, label: '1ST', type: 'section' },
+  { id: 10, label: 'Irrevocable Purchase Order', type: 'item' },
+  { id: 11, label: 'Supplier Documentary Requirements', type: 'item' },
+  { id: 12, label: 'Untagging Amount', type: 'item' },
+  { 
+    id: 13, 
+    label: 'Clearance to Untag', 
+    type: 'dropdown',
+  },
+  { id: 0, label: '2ND', type: 'section' },
+  { id: 14, label: 'AR', type: 'item' },
+  { id: 15, label: 'IAR', type: 'item' },
+  { id: 16, label: 'Receipt of Downpayment', type: 'item' },
+  { id: 17, label: 'Clearance to Untag', type: 'item' },
+  { id: 18, label: 'List of Inventory of Equipment', type: 'item' },
   { id: 0, label: 'LIQUIDATION', type: 'section' },
-  { id: 17, label: 'Accepted Liquidation', type: 'item' },
-  { id: 18, label: 'Annex 1', type: 'item' },
-  { id: 19, label: 'Annex 2', type: 'item' },
-  { id: 20, label: 'Liquidation Report', type: 'item' },
-  { id: 21, label: 'Property Acknowledgement Receipt', type: 'item' },
-  { id: 22, label: 'Inspection Report', type: 'item' },
+  { id: 19, label: 'Accepted Liquidation', type: 'item' },
+  { id: 20, label: 'Annex E', type: 'item' },
+  { id: 21, label: 'Annex F', type: 'item' },
+  { id: 22, label: 'Liquidation Report', type: 'item' },
+  { id: 23, label: 'Property Acknowledgement Receipt', type: 'item' },
+  { 
+    id: 24, 
+    label: 'Completion Report', 
+    type: 'dropdown',
+    options: ['Termination/Withdrawal Report', 'Completion Report']
+  },
   { id: 0, label: 'PHASE 2', type: 'section' },
-  { id: 23, label: 'Demand Letter / Notice', type: 'item' },
-  { id: 24, label: 'Clearance for Issuance', type: 'item' },
-  { id: 25, label: 'List of Inventory of Equipment', type: 'item' },
-  { id: 26, label: 'Accepted Liquidation', type: 'item' },
-  { id: 27, label: 'Annex 1', type: 'item' },
-  { id: 28, label: 'Annex 2', type: 'item' },
-  { id: 29, label: 'Liquidation Report', type: 'item' },
-  { id: 30, label: 'Property Acknowledgement Receipt', type: 'item' },
-  { id: 0, label: 'COMPLETION', type: 'section' },
-  { id: 31, label: 'Completion Report', type: 'item' },
-  { id: 32, label: 'Issuance of Certificate of Ownership', type: 'item' },
-  { id: 33, label: 'Completion Report', type: 'item' },
+  { 
+    id: 25, 
+    label: 'Annual PIS', 
+    type: 'dropdown',
+    options: ['2024', '2025', '2026', '2027', '2028']
+  },
+  { 
+    id: 26, 
+    label: 'QPR', 
+    type: 'dropdown',
+    options: ['Q1', 'Q2', 'Q3', 'Q4']
+  },
+  { id: 27, label: 'Receipt of PDC', type: 'item' },
+  { 
+    id: 28, 
+    label: 'Graduation Report', 
+    type: 'dropdown',
+    options: ['Termination/Withdrawal Report', 'Graduation Report']
+  },
+  { id: 29, label: 'Scan copy of Certificate of Ownership', type: 'item' },
 ];
 
 function DocumentTable({
@@ -111,11 +169,13 @@ function DocumentTable({
   docs,
   projectId,
   phase,
+  onProgressUpdate,
 }: {
   title: string;
   docs: DocRow[];
   projectId: string;
   phase: 'INITIATION' | 'IMPLEMENTATION';
+  onProgressUpdate?: (progress: number) => void;
 }) {
   const [expandedDropdowns, setExpandedDropdowns] = useState<Record<string, boolean>>({});
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
@@ -123,6 +183,108 @@ function DocumentTable({
   const [previewDoc, setPreviewDoc] = useState<ProjectDocument | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const targetItemIdRef = useRef<string | null>(null);
+  const [moaType, setMoaType] = useState<string>('');
+  const [fundReleaseType, setFundReleaseType] = useState<string>('');
+  const [authorityTagType, setAuthorityTagType] = useState<string>('');
+  const [clearanceUntagType, setClearanceUntagType] = useState<string>('');
+  const [completionReportType, setCompletionReportType] = useState<string>('');
+  const [annualPISYear, setAnnualPISYear] = useState<string>('');
+  const [qprQuarter, setQPRQuarter] = useState<string>('');
+  const [graduationReportType, setGraduationReportType] = useState<string>('');
+  const [approvedAmount, setApprovedAmount] = useState<string>('');
+  const [untaggingAmount, setUntaggingAmount] = useState<string>('');
+  const [moaSupplementalCount, setMoaSupplementalCount] = useState<number>(0);
+  const [dropdownSelections, setDropdownSelections] = useState<Record<string, string>>({});
+  const [abstractQuotationType, setAbstractQuotationType] = useState<string>('');
+  const [interventionInputs, setInterventionInputs] = useState<Array<{
+    type: 'equipment' | 'non-equipment';
+    name?: string;
+    cost?: string;
+    status?: string;
+    propertyCode?: string;
+    serviceType?: string;
+  }>>([]);
+  const [clearanceUntagRows, setClearanceUntagRows] = useState<Array<{
+    amount: string;
+    equipment: string;
+    supplier: string;
+  }>>([{ amount: '', equipment: '', supplier: '' }]);
+  const [completionReportRows, setCompletionReportRows] = useState<Array<{
+    type: string;
+  }>>([]);
+  const [annualPISRows, setAnnualPISRows] = useState<Array<{
+    year: string;
+  }>>([]);
+
+  useEffect(() => {
+    if (onProgressUpdate) {
+      const progress = calculateProgress();
+      onProgressUpdate(progress);
+    }
+  }, [documents, annualPISRows, completionReportRows, moaSupplementalCount, dropdownSelections]);
+
+  const calculateProgress = () => {
+    let totalItems = 0;
+    let uploadedItems = 0;
+
+    const countItems = (docList: DocRow[]) => {
+      docList.forEach(doc => {
+        if (doc.type === 'section' || doc.type === 'note') return;
+
+        if (doc.type === 'dropdown') {
+          if (doc.label === 'Annual PIS') {
+            annualPISRows.forEach((_, idx) => {
+              totalItems++;
+              const templateItemId = `${phase}-${doc.id}-${idx}`;
+              if (getDocForItem(templateItemId)) uploadedItems++;
+            });
+          } else if (doc.label === 'Completion Report' || doc.label === 'Graduation Report') {
+            completionReportRows.forEach((row, idx) => {
+              totalItems++;
+              const templateItemId = `${phase}-${doc.id}-${row.type}-${idx}`;
+              if (getDocForItem(templateItemId)) uploadedItems++;
+            });
+          } else if (doc.label === 'Memorandum of Agreement') {
+            totalItems++;
+            const mainId = `${phase}-${doc.id}-default`;
+            if (getDocForItem(mainId)) uploadedItems++;
+            
+            for (let i = 0; i < moaSupplementalCount; i++) {
+              totalItems++;
+              const suppId = `${phase}-${doc.id}-supplemental-${i}`;
+              if (getDocForItem(suppId)) uploadedItems++;
+            }
+          } else if (doc.label === 'Type of Business' && doc.subItems) {
+            const businessType = dropdownSelections[doc.id];
+            if (businessType) {
+              const itemsToCount = businessType === 'Sole Proprietorship'
+                ? doc.subItems.filter(sub => sub.id === 301)
+                : doc.subItems.filter(sub => sub.id !== 301);
+              
+              itemsToCount.forEach(subItem => {
+                totalItems++;
+                const templateItemId = `${phase}-${subItem.id}`;
+                if (getDocForItem(templateItemId)) uploadedItems++;
+              });
+            }
+          } else if (doc.options) {
+            doc.options.forEach((_, idx) => {
+              totalItems++;
+              const templateItemId = `${phase}-${doc.id}-${idx}`;
+              if (getDocForItem(templateItemId)) uploadedItems++;
+            });
+          }
+        } else {
+          totalItems++;
+          const templateItemId = `${phase}-${doc.id}`;
+          if (getDocForItem(templateItemId)) uploadedItems++;
+        }
+      });
+    };
+
+    countItems(docs);
+    return totalItems > 0 ? Math.round((uploadedItems / totalItems) * 100) : 0;
+  };
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -157,7 +319,6 @@ function DocumentTable({
     const templateItemId = targetItemIdRef.current;
     if (!file || !templateItemId) return;
 
-    // Reset the input so the same file can be re-selected
     e.target.value = '';
 
     setUploadingItemId(templateItemId);
@@ -225,6 +386,32 @@ function DocumentTable({
     }
   };
 
+  const handleDropdownSelection = (docId: number, value: string) => {
+    setDropdownSelections(prev => ({ ...prev, [docId]: value }));
+  };
+
+  const handleSaveDropdownSelection = (docId: number) => {
+    // Save the selection (you can add API call here if needed)
+    alert(`Selection saved: ${dropdownSelections[docId]}`);
+  };
+
+  const addInterventionItem = () => {
+    const type = abstractQuotationType.toLowerCase() as 'equipment' | 'non-equipment';
+    setInterventionInputs(prev => [...prev, { type }]);
+  };
+
+  const updateInterventionItem = (index: number, field: string, value: string) => {
+    setInterventionInputs(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const removeInterventionItem = (index: number) => {
+    setInterventionInputs(prev => prev.filter((_, i) => i !== index));
+  };
+
   let itemCounter = 0;
 
   return (
@@ -236,13 +423,13 @@ function DocumentTable({
           <span>To ensure that the document you uploaded is viewable in our system, click the View button below and check the document you uploaded. If it is not viewable, re-upload the document</span>
         </div>
 
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          className="hidden"
-          onChange={handleFileChange}
-        />
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="hidden"
+        onChange={handleFileChange}
+      />
 
         <div className="overflow-x-auto px-7">
           <table className="w-full border-collapse text-[13px]">
@@ -267,19 +454,19 @@ function DocumentTable({
                   );
                 }
 
-                if (doc.type === 'dropdown') {
-                  const key = `dropdown-${idx}`;
-                  return (
-                    <tr key={key}>
-                      <td colSpan={5} className="p-0 border-b border-[#eee]">
-                        <button className="flex items-center gap-1.5 bg-[#e8f5e9] border-none py-2 px-3 text-[13px] text-[#2e7d32] font-semibold cursor-pointer w-full transition-colors duration-200 hover:bg-[#c8e6c9]" onClick={() => toggleDropdown(key)}>
-                          <Icon icon={expandedDropdowns[key] ? 'mdi:chevron-down' : 'mdi:chevron-right'} width={18} height={18} />
-                          <span>{doc.label}</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                }
+              if (doc.type === 'dropdown') {
+                const key = `dropdown-${idx}`;
+                return (
+                  <tr key={key}>
+                    <td colSpan={5} className="p-0 border-b border-[#eee]">
+                      <button className="flex items-center gap-1.5 bg-[#e8f5e9] border-none py-2 px-3 text-[13px] text-[#2e7d32] font-semibold cursor-pointer w-full transition-colors duration-200 hover:bg-[#c8e6c9]" onClick={() => toggleDropdown(key)}>
+                        <Icon icon={expandedDropdowns[key] ? 'mdi:chevron-down' : 'mdi:chevron-right'} width={18} height={18} />
+                        <span>{doc.label}</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }
 
                 itemCounter++;
                 const templateItemId = `${phase}-${doc.id}`;
@@ -287,130 +474,75 @@ function DocumentTable({
                 const isUploading = uploadingItemId === templateItemId;
                 const hasFile = !!uploadedDoc;
 
-                return (
-                  <tr key={`${title}-${doc.id}-${idx}`}>
-                    <td className="py-2.5 px-3 border-b border-[#eee] align-middle text-[#888] font-medium">{itemCounter}</td>
-                    <td className="py-2.5 px-3 border-b border-[#eee] align-middle text-[#333]">{doc.label}</td>
-                    <td className="py-2.5 px-3 border-b border-[#eee] align-middle">
-                      {hasFile ? (
-                        <span className="text-[#333] text-xs truncate block max-w-[150px]" title={uploadedDoc.fileName}>
-                          {uploadedDoc.fileName}
-                        </span>
-                      ) : (
-                        <span className="text-[#bbb] italic text-xs">No file uploaded</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 px-3 border-b border-[#eee] align-middle text-[#999] text-xs">
-                      {hasFile
-                        ? new Date(uploadedDoc.createdAt).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                          })
-                        : '—'}
-                    </td>
-                    <td className="py-2.5 px-3 border-b border-[#eee] align-middle">
-                      <div className="flex gap-1.5">
-                        {/* Upload */}
-                        <button
-                          className="w-7 h-7 border-none rounded-md flex items-center justify-center cursor-pointer transition-opacity duration-200 text-white bg-[#f5a623] hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Upload"
-                          onClick={() => handleUploadClick(templateItemId)}
-                          disabled={isUploading}
-                        >
-                          {isUploading ? (
-                            <Icon icon="mdi:loading" width={14} height={14} className="animate-spin" />
-                          ) : (
-                            <Icon icon="mdi:upload" width={14} height={14} />
-                          )}
-                        </button>
-                        {/* View */}
-                        <button
-                          className={`w-7 h-7 border-none rounded-md flex items-center justify-center transition-opacity duration-200 text-white ${
-                            hasFile ? 'bg-[#2e7d32] cursor-pointer hover:opacity-80' : 'bg-[#ccc] cursor-not-allowed'
-                          }`}
-                          title="View"
-                          onClick={() => hasFile && handleView(uploadedDoc)}
-                          disabled={!hasFile}
-                        >
-                          <Icon icon="mdi:eye-outline" width={14} height={14} />
-                        </button>
-                        {/* Delete */}
-                        <button
-                          className={`w-7 h-7 border-none rounded-md flex items-center justify-center transition-opacity duration-200 text-white ${
-                            hasFile ? 'bg-[#c62828] cursor-pointer hover:opacity-80' : 'bg-[#ccc] cursor-not-allowed'
-                          }`}
-                          title="Delete"
-                          onClick={() => hasFile && handleDelete(uploadedDoc)}
-                          disabled={!hasFile}
-                        >
-                          <Icon icon="mdi:delete-outline" width={14} height={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        <div className="py-5" />
+              return (
+                <tr key={`${title}-${doc.id}-${idx}`}>
+                  <td className="py-2.5 px-3 border-b border-[#eee] align-middle text-[#888] font-medium">{itemCounter}</td>
+                  <td className="py-2.5 px-3 border-b border-[#eee] align-middle text-[#333]">{doc.label}</td>
+                  <td className="py-2.5 px-3 border-b border-[#eee] align-middle">
+                    {hasFile ? (
+                      <span className="text-[#333] text-xs truncate block max-w-[150px]" title={uploadedDoc.fileName}>
+                        {uploadedDoc.fileName}
+                      </span>
+                    ) : (
+                      <span className="text-[#bbb] italic text-xs">No file uploaded</span>
+                    )}
+                  </td>
+                  <td className="py-2.5 px-3 border-b border-[#eee] align-middle text-[#999] text-xs">
+                    {hasFile
+                      ? new Date(uploadedDoc.createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                      : '—'}
+                  </td>
+                  <td className="py-2.5 px-3 border-b border-[#eee] align-middle">
+                    <div className="flex gap-1.5">
+                      {/* Upload */}
+                      <button
+                        className="w-7 h-7 border-none rounded-md flex items-center justify-center cursor-pointer transition-opacity duration-200 text-white bg-[#f5a623] hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Upload"
+                        onClick={() => handleUploadClick(templateItemId)}
+                        disabled={isUploading}
+                      >
+                        {isUploading ? (
+                          <Icon icon="mdi:loading" width={14} height={14} className="animate-spin" />
+                        ) : (
+                          <Icon icon="mdi:upload" width={14} height={14} />
+                        )}
+                      </button>
+                      {/* View */}
+                      <button
+                        className={`w-7 h-7 border-none rounded-md flex items-center justify-center transition-opacity duration-200 text-white ${
+                          hasFile ? 'bg-[#2e7d32] cursor-pointer hover:opacity-80' : 'bg-[#ccc] cursor-not-allowed'
+                        }`}
+                        title="View"
+                        onClick={() => hasFile && handleView(uploadedDoc)}
+                        disabled={!hasFile}
+                      >
+                        <Icon icon="mdi:eye-outline" width={14} height={14} />
+                      </button>
+                      {/* Delete */}
+                      <button
+                        className={`w-7 h-7 border-none rounded-md flex items-center justify-center transition-opacity duration-200 text-white ${
+                          hasFile ? 'bg-[#c62828] cursor-pointer hover:opacity-80' : 'bg-[#ccc] cursor-not-allowed'
+                        }`}
+                        title="Delete"
+                        onClick={() => hasFile && handleDelete(uploadedDoc)}
+                        disabled={!hasFile}
+                      >
+                        <Icon icon="mdi:delete-outline" width={14} height={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
-
-      {/* Modal Preview */}
-      {previewDoc && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setPreviewDoc(null)}>
-          {/* A4 aspect ratio: 210mm x 297mm = 1:1.414 */}
-          <div className="bg-white rounded-lg w-[calc(90vh/1.414)] h-[90vh] max-w-full flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 flex-shrink-0">
-              <h3 className="text-sm font-semibold text-gray-800 truncate pr-4">{previewDoc.fileName}</h3>
-              <button
-                onClick={() => setPreviewDoc(null)}
-                className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors flex-shrink-0"
-                title="Close"
-              >
-                <Icon icon="mdi:close" width={20} height={20} className="text-gray-600" />
-              </button>
-            </div>
-
-            {/* Modal Body - Document Preview */}
-            <div className="flex-1 overflow-hidden bg-white">
-              <iframe
-                id="preview-iframe"
-                src={`/api/setup-projects/${projectId}/documents/${previewDoc.id}/download#toolbar=0`}
-                className="w-full h-full border-none"
-                title={previewDoc.fileName}
-              />
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex items-center justify-end gap-2 px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-              <button
-                onClick={() => handleDownload(previewDoc)}
-                className="flex items-center gap-1.5 px-4 py-2 bg-[#00bcd4] text-white rounded-md font-semibold text-xs hover:bg-[#0097a7] transition-colors"
-              >
-                <Icon icon="mdi:download" width={16} height={16} />
-                Download
-              </button>
-              <button
-                onClick={handlePrint}
-                className="flex items-center gap-1.5 px-4 py-2 bg-[#ff9800] text-white rounded-md font-semibold text-xs hover:bg-[#f57c00] transition-colors"
-              >
-                <Icon icon="mdi:printer" width={16} height={16} />
-                Print
-              </button>
-              <button
-                onClick={() => setPreviewDoc(null)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md font-semibold text-xs hover:bg-gray-300 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </>
+      <div className="py-5" />
+    </div>
   );
 }
 
@@ -420,6 +552,9 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [initiationProgress, setInitiationProgress] = useState(0);
+  const [implementationProgress, setImplementationProgress] = useState(0);
+  const overallProgress = Math.round((initiationProgress + implementationProgress) / 2);
 
   useEffect(() => {
     fetch(`/api/setup-projects/${id}`)
@@ -470,7 +605,7 @@ export default function ProjectDetailPage() {
         </Link>
 
         {/* Project Info Card */}
-        <div className="bg-white rounded-xl py-6 px-7 mb-8 shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+        <div className="bg-white rounded-xl py-6 px-7 mb-2 shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
           {/* Header with SETUP logo and Edit button */}
           <div className="flex items-start justify-between mb-5">
             <div className="flex items-center gap-3.5">
@@ -516,14 +651,62 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </div>
-  
 
+        {/* Project Progress */}
+        <div className="bg-white rounded-xl py-6 px-7 mb-2 shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+          <div className="grid grid-cols-3 gap-6">
+            {/* Project Initiation */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-[13px] font-semibold text-[#333] m-0">Project Initiation</h3>
+                <span className="text-[13px] font-semibold text-[#333]">{initiationProgress}%</span>
+              </div>
+              <div className="w-full h-2 bg-[#e0e0e0] rounded-full overflow-hidden">
+                <div className="h-full bg-[#ffa726] rounded-full transition-all duration-300" style={{ width: `${initiationProgress}%` }}></div>
+              </div>
+            </div>
+
+            {/* Project Implementation */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-[13px] font-semibold text-[#333] m-0">Project Implementation</h3>
+                <span className="text-[13px] font-semibold text-[#333]">{implementationProgress}%</span>
+              </div>
+              <div className="w-full h-2 bg-[#e0e0e0] rounded-full overflow-hidden">
+                <div className="h-full bg-[#ffa726] rounded-full transition-all duration-300" style={{ width: `${implementationProgress}%` }}></div>
+              </div>
+            </div>
+
+            {/* Overall Project Progress */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-[13px] font-semibold text-[#333] m-0">Overall Project Progress</h3>
+                <span className="text-[13px] font-semibold text-[#333]">{overallProgress}%</span>
+              </div>
+              <div className="w-full h-2 bg-[#e0e0e0] rounded-full overflow-hidden">
+                <div className="h-full bg-[#ffa726] rounded-full transition-all duration-300" style={{ width: `${overallProgress}%` }}></div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Project Initiation */}
-        <DocumentTable title="Project Initiation" docs={initiationDocs} projectId={id} phase="INITIATION" />
+          <DocumentTable 
+            title="Project Initiation" 
+            docs={initiationDocs} 
+            projectId={id} 
+            phase="INITIATION"
+            onProgressUpdate={setInitiationProgress}
+          />
 
-        {/* Project Implementation */}
-        <DocumentTable title="Project Implementation" docs={implementationDocs} projectId={id} phase="IMPLEMENTATION" />
+          {/* Project Implementation */}
+          <DocumentTable 
+            title="Project Implementation" 
+            docs={implementationDocs} 
+            projectId={id} 
+            phase="IMPLEMENTATION"
+            onProgressUpdate={setImplementationProgress}
+          />
       </main>
     </DashboardLayout>
   );
