@@ -169,11 +169,13 @@ function DocumentTable({
   docs,
   projectId,
   phase,
+  onProgressUpdate,
 }: {
   title: string;
   docs: DocRow[];
   projectId: string;
   phase: 'INITIATION' | 'IMPLEMENTATION';
+  onProgressUpdate?: (progress: number) => void;
 }) {
   const [expandedDropdowns, setExpandedDropdowns] = useState<Record<string, boolean>>({});
   const [documents, setDocuments] = useState<ProjectDocument[]>([]);
@@ -212,6 +214,76 @@ function DocumentTable({
   const [annualPISRows, setAnnualPISRows] = useState<Array<{
     year: string;
   }>>([]);
+
+  useEffect(() => {
+    if (onProgressUpdate) {
+      const progress = calculateProgress();
+      onProgressUpdate(progress);
+    }
+  }, [documents, annualPISRows, completionReportRows, moaSupplementalCount, dropdownSelections]);
+
+  const calculateProgress = () => {
+    let totalItems = 0;
+    let uploadedItems = 0;
+
+    const countItems = (docList: DocRow[]) => {
+      docList.forEach(doc => {
+        if (doc.type === 'section' || doc.type === 'note') return;
+
+        if (doc.type === 'dropdown') {
+          if (doc.label === 'Annual PIS') {
+            annualPISRows.forEach((_, idx) => {
+              totalItems++;
+              const templateItemId = `${phase}-${doc.id}-${idx}`;
+              if (getDocForItem(templateItemId)) uploadedItems++;
+            });
+          } else if (doc.label === 'Completion Report' || doc.label === 'Graduation Report') {
+            completionReportRows.forEach((row, idx) => {
+              totalItems++;
+              const templateItemId = `${phase}-${doc.id}-${row.type}-${idx}`;
+              if (getDocForItem(templateItemId)) uploadedItems++;
+            });
+          } else if (doc.label === 'Memorandum of Agreement') {
+            totalItems++;
+            const mainId = `${phase}-${doc.id}-default`;
+            if (getDocForItem(mainId)) uploadedItems++;
+            
+            for (let i = 0; i < moaSupplementalCount; i++) {
+              totalItems++;
+              const suppId = `${phase}-${doc.id}-supplemental-${i}`;
+              if (getDocForItem(suppId)) uploadedItems++;
+            }
+          } else if (doc.label === 'Type of Business' && doc.subItems) {
+            const businessType = dropdownSelections[doc.id];
+            if (businessType) {
+              const itemsToCount = businessType === 'Sole Proprietorship'
+                ? doc.subItems.filter(sub => sub.id === 301)
+                : doc.subItems.filter(sub => sub.id !== 301);
+              
+              itemsToCount.forEach(subItem => {
+                totalItems++;
+                const templateItemId = `${phase}-${subItem.id}`;
+                if (getDocForItem(templateItemId)) uploadedItems++;
+              });
+            }
+          } else if (doc.options) {
+            doc.options.forEach((_, idx) => {
+              totalItems++;
+              const templateItemId = `${phase}-${doc.id}-${idx}`;
+              if (getDocForItem(templateItemId)) uploadedItems++;
+            });
+          }
+        } else {
+          totalItems++;
+          const templateItemId = `${phase}-${doc.id}`;
+          if (getDocForItem(templateItemId)) uploadedItems++;
+        }
+      });
+    };
+
+    countItems(docs);
+    return totalItems > 0 ? Math.round((uploadedItems / totalItems) * 100) : 0;
+  };
 
   const fetchDocuments = useCallback(async () => {
     try {
@@ -1625,6 +1697,9 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [initiationProgress, setInitiationProgress] = useState(0);
+  const [implementationProgress, setImplementationProgress] = useState(0);
+  const overallProgress = Math.round((initiationProgress + implementationProgress) / 2);
 
   useEffect(() => {
     fetch(`/api/setup-projects/${id}`)
@@ -1729,10 +1804,10 @@ export default function ProjectDetailPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-[13px] font-semibold text-[#333] m-0">Project Initiation</h3>
-                <span className="text-[13px] font-semibold text-[#333]">80%</span>
+                <span className="text-[13px] font-semibold text-[#333]">{initiationProgress}%</span>
               </div>
               <div className="w-full h-2 bg-[#e0e0e0] rounded-full overflow-hidden">
-                <div className="h-full bg-[#ffa726] rounded-full" style={{ width: '80%' }}></div>
+                <div className="h-full bg-[#ffa726] rounded-full transition-all duration-300" style={{ width: `${initiationProgress}%` }}></div>
               </div>
             </div>
 
@@ -1740,10 +1815,10 @@ export default function ProjectDetailPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-[13px] font-semibold text-[#333] m-0">Project Implementation</h3>
-                <span className="text-[13px] font-semibold text-[#333]">10%</span>
+                <span className="text-[13px] font-semibold text-[#333]">{implementationProgress}%</span>
               </div>
               <div className="w-full h-2 bg-[#e0e0e0] rounded-full overflow-hidden">
-                <div className="h-full bg-[#ffa726] rounded-full" style={{ width: '10%' }}></div>
+                <div className="h-full bg-[#ffa726] rounded-full transition-all duration-300" style={{ width: `${implementationProgress}%` }}></div>
               </div>
             </div>
 
@@ -1751,20 +1826,32 @@ export default function ProjectDetailPage() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-[13px] font-semibold text-[#333] m-0">Overall Project Progress</h3>
-                <span className="text-[13px] font-semibold text-[#333]">50%</span>
+                <span className="text-[13px] font-semibold text-[#333]">{overallProgress}%</span>
               </div>
               <div className="w-full h-2 bg-[#e0e0e0] rounded-full overflow-hidden">
-                <div className="h-full bg-[#ffa726] rounded-full" style={{ width: '50%' }}></div>
+                <div className="h-full bg-[#ffa726] rounded-full transition-all duration-300" style={{ width: `${overallProgress}%` }}></div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Project Initiation */}
-        <DocumentTable title="Project Initiation" docs={initiationDocs} projectId={id} phase="INITIATION" />
+          <DocumentTable 
+            title="Project Initiation" 
+            docs={initiationDocs} 
+            projectId={id} 
+            phase="INITIATION"
+            onProgressUpdate={setInitiationProgress}
+          />
 
-        {/* Project Implementation */}
-        <DocumentTable title="Project Implementation" docs={implementationDocs} projectId={id} phase="IMPLEMENTATION" />
+          {/* Project Implementation */}
+          <DocumentTable 
+            title="Project Implementation" 
+            docs={implementationDocs} 
+            projectId={id} 
+            phase="IMPLEMENTATION"
+            onProgressUpdate={setImplementationProgress}
+          />
       </main>
     </DashboardLayout>
   );
