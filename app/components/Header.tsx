@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Icon } from '@iconify/react';
+import NotificationDropdown from './notification';
 
 export default function Header() {
   const [userName, setUserName] = useState('User');
@@ -60,7 +61,7 @@ export default function Header() {
         <Link href="/maps" className="flex items-center justify-center no-underline w-8 h-8 rounded-full text-accent bg-accent/10 transition-all duration-300 [animation:compassPulse_2.5s_ease-in-out_infinite] hover:bg-accent hover:text-white hover:scale-115 hover:rotate-[15deg] hover:shadow-[0_4px_14px_rgba(0,174,239,0.4)] hover:[animation:none] active:scale-90 active:-rotate-[10deg] active:transition-all active:duration-100" title="Maps">
           <Icon icon="mdi:compass-outline" width={24} height={24} />
         </Link>
-        <button className="bg-transparent border-none cursor-pointer p-[5px] text-[#666] transition-colors duration-200 hover:text-primary"><Icon icon="mdi:bell-outline" width={24} height={24} /></button>
+        <NotificationDropdown />
         
         {/* User Profile Dropdown */}
         <div className="relative" ref={dropdownRef}>
