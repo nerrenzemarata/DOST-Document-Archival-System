@@ -1,5 +1,6 @@
 'use client';
 
+
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -7,21 +8,50 @@ import { useRouter } from 'next/navigation';
 import { Icon } from '@iconify/react';
 import NotificationDropdown from './notification';
 
+
 export default function Header() {
   const [userName, setUserName] = useState('User');
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  useEffect(() => {
+
+  // Fetch user data including profile image
+  const fetchUserData = async () => {
     try {
       const stored = localStorage.getItem('user');
       if (stored) {
         const user = JSON.parse(stored);
         if (user.fullName) setUserName(user.fullName);
+       
+        // Fetch fresh user data including profile image
+        if (user.id) {
+          const res = await fetch(`/api/users/${user.id}`);
+          if (res.ok) {
+            const userData = await res.json();
+            setProfileImage(userData.profileImageUrl || null);
+          }
+        }
       }
     } catch {}
+  };
+
+
+  useEffect(() => {
+    fetchUserData();
+
+
+    // Listen for profile image updates
+    const handleProfileUpdate = () => {
+      fetchUserData();
+    };
+
+
+    window.addEventListener('profileImageUpdated', handleProfileUpdate);
+    return () => window.removeEventListener('profileImageUpdated', handleProfileUpdate);
   }, []);
+
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -31,20 +61,24 @@ export default function Header() {
       }
     };
 
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
 
   const handleMyProfile = () => {
     setIsDropdownOpen(false);
     router.push('/profile');
   };
 
+
   const handleLogout = () => {
     setIsDropdownOpen(false);
     localStorage.removeItem('user');
     router.push('/');
   };
+
 
   return (
     <header className="flex justify-between items-center py-2 px-6 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.1)] z-[100] max-md:py-1.5 max-md:px-3.5">
@@ -62,16 +96,25 @@ export default function Header() {
           <Icon icon="mdi:compass-outline" width={24} height={24} />
         </Link>
         <NotificationDropdown />
-        
+       
         {/* User Profile Dropdown */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             className="flex items-center gap-2 pl-3 border-l border-[#e0e0e0] bg-transparent cursor-pointer hover:opacity-80 transition-opacity"
           >
-            <Icon icon="mdi:account-circle" width={30} height={30} color="#666" />
+            {profileImage ? (
+              <img
+                src={profileImage}
+                alt="Profile"
+                className="w-[30px] h-[30px] rounded-full object-cover border-2 border-cyan-400"
+              />
+            ) : (
+              <Icon icon="mdi:account-circle" width={30} height={30} color="#666" />
+            )}
             <span className="text-[13px] text-[#333] font-medium max-md:hidden">{userName}</span>
           </button>
+
 
           {/* Dropdown Menu */}
           {isDropdownOpen && (
@@ -98,3 +141,5 @@ export default function Header() {
     </header>
   );
 }
+
+
