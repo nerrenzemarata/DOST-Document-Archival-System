@@ -16,10 +16,7 @@ export default function Header() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-<<<<<<< HEAD
 
-=======
->>>>>>> ace97289ad4eb8173284b55fc7a3ef78ad1bd8b0
   // Fetch user data including profile image
   const fetchUserData = async () => {
     try {
@@ -27,11 +24,7 @@ export default function Header() {
       if (stored) {
         const user = JSON.parse(stored);
         if (user.fullName) setUserName(user.fullName);
-<<<<<<< HEAD
        
-=======
-        
->>>>>>> ace97289ad4eb8173284b55fc7a3ef78ad1bd8b0
         // Fetch fresh user data including profile image
         if (user.id) {
           const res = await fetch(`/api/users/${user.id}`);
@@ -44,26 +37,17 @@ export default function Header() {
     } catch {}
   };
 
-<<<<<<< HEAD
 
   useEffect(() => {
     fetchUserData();
 
 
-=======
-  useEffect(() => {
-    fetchUserData();
-
->>>>>>> ace97289ad4eb8173284b55fc7a3ef78ad1bd8b0
     // Listen for profile image updates
     const handleProfileUpdate = () => {
       fetchUserData();
     };
 
-<<<<<<< HEAD
 
-=======
->>>>>>> ace97289ad4eb8173284b55fc7a3ef78ad1bd8b0
     window.addEventListener('profileImageUpdated', handleProfileUpdate);
     return () => window.removeEventListener('profileImageUpdated', handleProfileUpdate);
   }, []);
@@ -157,5 +141,4 @@ export default function Header() {
     </header>
   );
 }
-
 
