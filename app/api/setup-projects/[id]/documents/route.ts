@@ -38,11 +38,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const buffer = Buffer.from(await file.arrayBuffer());
 
-  // Delete existing doc for same templateItemId (handles re-upload/edit)
-  await prisma.projectDocument.deleteMany({
-    where: { projectId: id, templateItemId },
-  });
-
   const document = await prisma.projectDocument.create({
     data: {
       projectId: id,
