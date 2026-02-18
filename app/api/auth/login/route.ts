@@ -15,6 +15,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
   }
 
+  // Log the user login
+  await prisma.userLog.create({
+    data: {
+      userId: user.id,
+      action: 'LOGIN',
+    },
+  });
+
   return NextResponse.json({
     id: user.id,
     email: user.email,

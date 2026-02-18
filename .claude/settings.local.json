@@ -35,7 +35,15 @@
       "Bash(sudo service postgresql status:*)",
       "Bash(wc:*)",
       "Bash(grep:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(nc:*)",
+      "Bash(curl:*)",
+      "Bash(sudo tee:*)",
+      "Bash(cmd.exe /c \"npx prisma migrate dev --name add_user_logs_and_permissions\")",
+      "Bash(cmd.exe /c \"ping 0.tcp.ap.ngrok.io\")",
+      "Bash(nslookup:*)",
+      "Bash(host:*)",
+      "Bash(cmd.exe /c \"nslookup 0.tcp.ap.ngrok.io 8.8.8.8\")"
     ]
   }
 }
