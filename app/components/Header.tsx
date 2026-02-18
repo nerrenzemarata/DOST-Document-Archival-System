@@ -30,6 +30,7 @@ export default function Header() {
           const res = await fetch(`/api/users/${user.id}`);
           if (res.ok) {
             const userData = await res.json();
+            if (userData.fullName) setUserName(userData.fullName);
             setProfileImage(userData.profileImageUrl || null);
           }
         }
@@ -49,7 +50,11 @@ export default function Header() {
 
 
     window.addEventListener('profileImageUpdated', handleProfileUpdate);
-    return () => window.removeEventListener('profileImageUpdated', handleProfileUpdate);
+    window.addEventListener('userUpdated', handleProfileUpdate);
+    return () => {
+      window.removeEventListener('profileImageUpdated', handleProfileUpdate);
+      window.removeEventListener('userUpdated', handleProfileUpdate);
+    };
   }, []);
 
 

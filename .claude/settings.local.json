@@ -35,7 +35,10 @@
       "Bash(sudo service postgresql status:*)",
       "Bash(wc:*)",
       "Bash(grep:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "WebFetch(domain:overpass-api.de)",
+      "Bash(curl:*)",
+      "Bash(python3:*)"
     ]
   }
 }
