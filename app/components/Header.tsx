@@ -1,22 +1,119 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Icon } from '@iconify/react';
+import NotificationDropdown from './notification';
+
+
+interface UserPermissions {
+  canAccessSetup: boolean;
+  canAccessCest: boolean;
+  canAccessMaps: boolean;
+  canAccessCalendar: boolean;
+  canAccessArchival: boolean;
+  canManageUsers: boolean;
+}
 
 export default function Header() {
   const [userName, setUserName] = useState('User');
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [permissions, setPermissions] = useState<UserPermissions | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
-  useEffect(() => {
+
+  // Fetch user data including profile image and permissions
+  const fetchUserData = async () => {
     try {
       const stored = localStorage.getItem('user');
       if (stored) {
         const user = JSON.parse(stored);
         if (user.fullName) setUserName(user.fullName);
+
+        // Fetch fresh user data including profile image
+        if (user.id) {
+          const res = await fetch(`/api/users/${user.id}`);
+          if (res.ok) {
+            const userData = await res.json();
+            if (userData.fullName) setUserName(userData.fullName);
+            setProfileImage(userData.profileImageUrl || null);
+          }
+
+          // Admins have full access
+          if (user.role === 'ADMIN') {
+            setPermissions({
+              canAccessSetup: true,
+              canAccessCest: true,
+              canAccessMaps: true,
+              canAccessCalendar: true,
+              canAccessArchival: true,
+              canManageUsers: true,
+            });
+          } else {
+            // Fetch permissions for staff
+            const permRes = await fetch(`/api/user-permissions/${user.id}`);
+            if (permRes.ok) {
+              const permData = await permRes.json();
+              setPermissions(permData);
+            }
+          }
+        }
       }
     } catch {}
+  };
+
+
+  useEffect(() => {
+    fetchUserData();
+
+    // Listen for profile image updates
+    const handleProfileUpdate = () => {
+      fetchUserData();
+    };
+
+    window.addEventListener('profileImageUpdated', handleProfileUpdate);
+
+    // Poll for permission changes every 3 seconds
+    const pollInterval = setInterval(fetchUserData, 3000);
+
+    return () => {
+      window.removeEventListener('profileImageUpdated', handleProfileUpdate);
+      clearInterval(pollInterval);
+    };
   }, []);
+
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+
+  const handleMyProfile = () => {
+    setIsDropdownOpen(false);
+    router.push('/profile');
+  };
+
+
+  const handleLogout = () => {
+    setIsDropdownOpen(false);
+    localStorage.removeItem('user');
+    router.push('/');
+  };
+
 
   return (
     <header className="flex justify-between items-center py-2 px-6 bg-white shadow-[0_2px_8px_rgba(0,0,0,0.1)] z-[100] max-md:py-1.5 max-md:px-3.5">
@@ -30,15 +127,55 @@ export default function Header() {
         </div>
       </div>
       <div className="flex items-center gap-2.5">
-        <Link href="/maps" className="flex items-center justify-center no-underline w-8 h-8 rounded-full text-accent bg-accent/10 transition-all duration-300 [animation:compassPulse_2.5s_ease-in-out_infinite] hover:bg-accent hover:text-white hover:scale-115 hover:rotate-[15deg] hover:shadow-[0_4px_14px_rgba(0,174,239,0.4)] hover:[animation:none] active:scale-90 active:-rotate-[10deg] active:transition-all active:duration-100" title="Maps">
-          <Icon icon="mdi:compass-outline" width={24} height={24} />
-        </Link>
-        <button className="bg-transparent border-none cursor-pointer p-[5px] text-[#666] transition-colors duration-200 hover:text-primary"><Icon icon="mdi:bell-outline" width={24} height={24} /></button>
-        <div className="flex items-center gap-2 pl-3 border-l border-[#e0e0e0]">
-          <Icon icon="mdi:account-circle" width={30} height={30} color="#666" />
-          <span className="text-[13px] text-[#333] font-medium max-md:hidden">{userName}</span>
+        {(!permissions || permissions.canAccessMaps) && (
+          <Link href="/maps" className="flex items-center justify-center no-underline w-8 h-8 rounded-full color-#666 text-gray-500 transition-all duration-300 hover:bg-accent hover:text-white hover:scale-115 hover:rotate-[15deg] hover:shadow-[0_4px_14px_rgba(0,174,239,0.4)] hover:[animation:none] active:scale-90 active:-rotate-[10deg] active:transition-all active:duration-100" title="Maps">
+            <Icon icon="mdi:compass-outline" width={24} height={24} />
+          </Link>
+        )}
+        <NotificationDropdown />
+       
+        {/* User Profile Dropdown */}
+        <div className="relative" ref={dropdownRef}>
+          <button
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            className="flex items-center gap-2 pl-3 border-l border-[#e0e0e0] bg-transparent cursor-pointer hover:opacity-80 transition-opacity"
+          >
+            {profileImage ? (
+              <img
+                src={profileImage}
+                alt="Profile"
+                className="w-[30px] h-[30px] rounded-full object-cover border-2 border-cyan-400"
+              />
+            ) : (
+              <Icon icon="mdi:account-circle" width={30} height={30} color="#666" />
+            )}
+            <span className="text-[13px] text-[#333] font-medium max-md:hidden">{userName}</span>
+          </button>
+
+
+          {/* Dropdown Menu */}
+          {isDropdownOpen && (
+            <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+              <button
+                onClick={handleMyProfile}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors text-left"
+              >
+                <Icon icon="mdi:account-outline" width={20} height={20} />
+                <span>My Profile</span>
+              </button>
+              <div className="border-t border-gray-200 my-1"></div>
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+              >
+                <Icon icon="mdi:logout" width={20} height={20} />
+                <span>Log Out</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>
   );
 }
+

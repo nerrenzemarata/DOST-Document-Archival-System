@@ -46,12 +46,47 @@ model User {
   contactNo    String?
   birthday     DateTime? @db.Date
   role              Role      @default(STAFF)
+  isApproved        Boolean   @default(false)
+  profileImageUrl   String?
   resetOtp          String?
   resetOtpExpiresAt DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
+  logs        UserLog[]
+  permissions UserPermission?
+
   @@map("users")
+}
+
+// ─── User Logs ──────────────────────────────────────────────────────
+
+model UserLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  action    String   @default("LOGIN")
+  timestamp DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_logs")
+}
+
+// ─── User Permissions ───────────────────────────────────────────────
+
+model UserPermission {
+  id              String  @id @default(uuid()) @db.Uuid
+  userId          String  @unique @db.Uuid
+  canAccessSetup  Boolean @default(true)
+  canAccessCest   Boolean @default(true)
+  canAccessMaps   Boolean @default(true)
+  canAccessCalendar Boolean @default(true)
+  canAccessArchival Boolean @default(true)
+  canManageUsers  Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_permissions")
 }
 
 // ─── SETUP Projects ──────────────────────────────────────────────────

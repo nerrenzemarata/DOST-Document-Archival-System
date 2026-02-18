@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { Icon } from '@iconify/react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import DashboardLayout from '../components/DashboardLayout';
 import 'leaflet/dist/leaflet.css';
 import Image from 'next/image';
@@ -67,7 +68,7 @@ const filterTabs = [
   { id: 'PROPOSAL', label: 'Proposal', color: '#1565c0' },
   { id: 'APPROVED', label: 'Approved', color: '#2e7d32' },
   { id: 'ONGOING', label: 'Ongoing', color: '#f57f17' },
-  { id: 'WITHDRAWN', label: 'Withdrawal', color: '#c62828' },
+  { id: 'WITHDRAWN', label: 'Withdrawal', color: '#757575' },
   { id: 'TERMINATED', label: 'Terminated', color: '#ad1457' },
   { id: 'GRADUATED', label: 'Graduated', color: '#00695c' },
 ];
@@ -101,17 +102,15 @@ const statusDisplay: Record<string, string> = {
   WITHDRAWN: 'Withdrawal',
   TERMINATED: 'Terminated',
   GRADUATED: 'Graduated',
-  EVALUATED: 'Evaluated',
 };
 
 const statusColors: Record<string, string> = {
   PROPOSAL: 'bg-[#e3f2fd] text-[#1565c0]',
   APPROVED: 'bg-[#e8f5e9] text-[#2e7d32]',
   ONGOING: 'bg-[#fff8e1] text-[#f57f17]',
-  WITHDRAWN: 'bg-[#ffebee] text-[#c62828]',
+  WITHDRAWN: 'bg-[#f0f0f0] text-[#757575]',
   TERMINATED: 'bg-[#fce4ec] text-[#ad1457]',
   GRADUATED: 'bg-[#e0f2f1] text-[#00695c]',
-  EVALUATED: 'bg-[#e3f2fd] text-[#1565c0]',
 };
 
 const sortFilterCategories = [
@@ -158,6 +157,39 @@ export default function SetupPage() {
   const [deleting, setDeleting] = useState(false);
   const sortRef = useRef<HTMLDivElement>(null);
   const filterRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
+  const topScrollRef = useRef<HTMLDivElement>(null);
+  const [tableScrollWidth, setTableScrollWidth] = useState(0);
+  const isSyncingScroll = useRef(false);
+
+  // Keep top scrollbar width in sync with table content width
+  useEffect(() => {
+    const tableEl = tableScrollRef.current;
+    if (!tableEl) return;
+    const update = () => setTableScrollWidth(tableEl.scrollWidth);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(tableEl);
+    return () => observer.disconnect();
+  }, [projects, activeFilter, searchQuery, filterCategory, filterValue]);
+
+  const handleTableScroll = useCallback(() => {
+    if (isSyncingScroll.current) return;
+    isSyncingScroll.current = true;
+    if (topScrollRef.current && tableScrollRef.current) {
+      topScrollRef.current.scrollLeft = tableScrollRef.current.scrollLeft;
+    }
+    isSyncingScroll.current = false;
+  }, []);
+
+  const handleTopScroll = useCallback(() => {
+    if (isSyncingScroll.current) return;
+    isSyncingScroll.current = true;
+    if (tableScrollRef.current && topScrollRef.current) {
+      tableScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+    }
+    isSyncingScroll.current = false;
+  }, []);
 
   const fetchProjects = async () => {
     try {
@@ -459,6 +491,39 @@ export default function SetupPage() {
     doc.save(`SETUP_Masterlist_${new Date().toISOString().slice(0, 10)}.pdf`);
   };
 
+  const handleExportExcel = () => {
+    const projectsToExport = selectedProjects.length > 0
+      ? filteredProjects.filter(p => selectedProjects.includes(p.id))
+      : filteredProjects;
+    if (projectsToExport.length === 0) return;
+
+    const headers = ['#', 'Code', 'Project Title', 'Firm', 'Address', 'Corporator', 'Contact', 'Email', 'Status', 'Sector', 'Size', 'Year'];
+    const data = projectsToExport.map((p, i) => [
+      i + 1,
+      `#${p.code}`,
+      p.title,
+      p.firm || '—',
+      p.address || '—',
+      p.corporatorName || '—',
+      p.contactNumbers.join(', ') || '—',
+      p.emails.join(', ') || '—',
+      statusDisplay[p.status] || p.status,
+      p.prioritySector || '—',
+      p.firmSize || '—',
+      p.year || '—',
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    // Auto-size columns based on content width
+    ws['!cols'] = headers.map((h, i) => {
+      const maxLen = Math.max(h.length, ...data.map(row => String(row[i]).length));
+      return { wch: Math.min(maxLen + 2, 40) };
+    });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'SETUP Masterlist');
+    XLSX.writeFile(wb, `SETUP_Masterlist_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
   const getStatusClass = (status: string) => statusColors[status] || statusColors.PROPOSAL;
 
   return (
@@ -552,10 +617,23 @@ export default function SetupPage() {
               <button className="flex items-center gap-[5px] py-2 px-[15px] bg-[#dc3545] text-white border border-[#dc3545] rounded-lg text-[13px] cursor-pointer transition-all duration-200 hover:bg-[#c82333]" onClick={handleExportPDF}>
                 <Icon icon="mdi:file-pdf-box" width={16} height={16} /> Export PDF
               </button>
+              <button className="flex items-center gap-[5px] py-2 px-[15px] bg-[#217346] text-white border border-[#217346] rounded-lg text-[13px] cursor-pointer transition-all duration-200 hover:bg-[#1a5c38]" onClick={handleExportExcel}>
+                <Icon icon="mdi:file-excel-box" width={16} height={16} /> Export Excel
+              </button>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
+          {/* Top scrollbar - stays sticky when scrolling down */}
+          <div
+            ref={topScrollRef}
+            onScroll={handleTopScroll}
+            className="overflow-x-auto overflow-y-hidden sticky top-0 z-10 bg-white"
+            style={{ height: '12px', marginBottom: '-1px' }}
+          >
+            <div style={{ width: tableScrollWidth, height: '1px' }} />
+          </div>
+
+          <div className="overflow-x-auto scrollbar-hide" ref={tableScrollRef} onScroll={handleTableScroll}>
             <table className="w-full border-collapse text-xs">
               <thead>
                 <tr>
