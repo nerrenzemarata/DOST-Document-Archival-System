@@ -5,6 +5,24 @@ import { Icon } from '@iconify/react';
 import DashboardLayout from '../components/DashboardLayout';
 import Image from 'next/image';
 
+// Helper to get userId for activity logging
+function getUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('user');
+    if (!stored) return null;
+    return JSON.parse(stored)?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+// Helper to create headers with userId
+function getAuthHeaders(): HeadersInit {
+  const userId = getUserId();
+  return userId ? { 'x-user-id': userId } : {};
+}
+
 interface CestProject {
   id: string;
   code: string;
@@ -177,7 +195,7 @@ export default function CestPage() {
     setDeleting(true);
     try {
       await Promise.all(selectedProjects.map(id =>
-        fetch(`/api/cest-projects/${id}`, { method: 'DELETE' })
+        fetch(`/api/cest-projects/${id}`, { method: 'DELETE', headers: getAuthHeaders() })
       ));
       setSelectedProjects([]);
       await fetchProjects();
@@ -255,7 +273,7 @@ export default function CestPage() {
 
       const res = await fetch('/api/cest-projects', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(payload),
       });
 

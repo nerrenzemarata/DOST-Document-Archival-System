@@ -10,6 +10,24 @@ import DashboardLayout from '../components/DashboardLayout';
 import 'leaflet/dist/leaflet.css';
 import Image from 'next/image';
 
+// Helper to get userId for activity logging
+function getUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('user');
+    if (!stored) return null;
+    return JSON.parse(stored)?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+// Helper to create headers with userId
+function getAuthHeaders(): HeadersInit {
+  const userId = getUserId();
+  return userId ? { 'x-user-id': userId } : {};
+}
+
 // Cascading address data: Province → Municipality → Barangays
 const addressData: Record<string, Record<string, string[]>> = {
   'Misamis Oriental': {
@@ -429,7 +447,7 @@ export default function SetupPage() {
     setDeleting(true);
     try {
       await Promise.all(selectedProjects.map(id =>
-        fetch(`/api/setup-projects/${id}`, { method: 'DELETE' })
+        fetch(`/api/setup-projects/${id}`, { method: 'DELETE', headers: getAuthHeaders() })
       ));
       setSelectedProjects([]);
       await fetchProjects();

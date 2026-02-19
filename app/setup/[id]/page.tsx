@@ -6,6 +6,28 @@ import Link from 'next/link';
 import { Icon } from '@iconify/react';
 import DashboardLayout from '../../components/DashboardLayout';
 
+// Helper to get userId for activity logging
+function getUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('user');
+    console.log('[getUserId] localStorage user:', stored);
+    if (!stored) return null;
+    const userId = JSON.parse(stored)?.id || null;
+    console.log('[getUserId] Extracted userId:', userId);
+    return userId;
+  } catch (e) {
+    console.error('[getUserId] Error parsing user:', e);
+    return null;
+  }
+}
+
+// Helper to create headers with userId
+function getAuthHeaders(): HeadersInit {
+  const userId = getUserId();
+  return userId ? { 'x-user-id': userId } : {};
+}
+
 interface Project {
   id: string;
   code: string;
@@ -341,16 +363,25 @@ function DocumentTable({
     setUploadingItemId(templateItemId);
     try {
       let lastUploaded: { fileName: string; fileType: string; fileSize: string; date: string } | null = null;
+      const userId = getUserId();
+      console.log('[Upload] userId being sent:', userId);
       for (const file of files) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('phase', phase);
         formData.append('templateItemId', templateItemId);
+        if (userId) {
+          formData.append('userId', userId);
+        } else {
+          console.warn('[Upload] No userId found in localStorage!');
+        }
 
+        console.log('[Upload] Sending request to API...');
         const res = await fetch(`/api/setup-projects/${projectId}/documents`, {
           method: 'POST',
           body: formData,
         });
+        console.log('[Upload] Response status:', res.status);
 
         if (!res.ok) throw new Error('Upload failed');
 
@@ -415,6 +446,7 @@ function DocumentTable({
     try {
       const res = await fetch(`/api/setup-projects/${projectId}/documents/${doc.id}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error('Delete failed');
       await fetchDocuments();
@@ -432,7 +464,7 @@ function DocumentTable({
     if (!confirm(msg)) return;
     try {
       await Promise.all(docs.map(d =>
-        fetch(`/api/setup-projects/${projectId}/documents/${d.id}`, { method: 'DELETE' })
+        fetch(`/api/setup-projects/${projectId}/documents/${d.id}`, { method: 'DELETE', headers: getAuthHeaders() })
       ));
       await fetchDocuments();
     } catch {
@@ -443,7 +475,7 @@ function DocumentTable({
   const handleDeleteSingle = async (docId: string, fileName: string) => {
     if (!confirm(`Delete "${fileName}"?`)) return;
     try {
-      await fetch(`/api/setup-projects/${projectId}/documents/${docId}`, { method: 'DELETE' });
+      await fetch(`/api/setup-projects/${projectId}/documents/${docId}`, { method: 'DELETE', headers: getAuthHeaders() });
       await fetchDocuments();
     } catch {
       alert('Failed to delete file. Please try again.');
@@ -2085,7 +2117,7 @@ export default function ProjectDetailPage() {
     try {
       const res = await fetch(`/api/setup-projects/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ status: newStatus }),
       });
       if (!res.ok) throw new Error('Failed to update status');

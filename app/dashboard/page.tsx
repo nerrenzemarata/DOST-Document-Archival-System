@@ -7,6 +7,24 @@ import DashboardLayout from '../components/DashboardLayout';
 import { NavItem } from '../components/Sidebar';
 import { CheckCircle2, AlertCircle } from 'lucide-react'
 
+// Helper to get userId for activity logging
+function getUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('user');
+    if (!stored) return null;
+    return JSON.parse(stored)?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+// Helper to create headers with userId
+function getAuthHeaders(): Record<string, string> {
+  const userId = getUserId();
+  return userId ? { 'x-user-id': userId } : {};
+}
+
 interface UserPermissions {
   canAccessSetup: boolean;
   canAccessCest: boolean;
@@ -265,7 +283,7 @@ export default function DashboardPage() {
   try {
     const res = await fetch('/api/calendar-events', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({
         title: bookingForm.eventTitle,
         date: bookingForm.eventDate,
@@ -385,7 +403,7 @@ export default function DashboardPage() {
   const confirmDeleteEvent = async () => {
     if (eventToDelete) {
       try {
-        await fetch(`/api/calendar-events/${eventToDelete.id}`, { method: 'DELETE' });
+        await fetch(`/api/calendar-events/${eventToDelete.id}`, { method: 'DELETE', headers: getAuthHeaders() });
       } catch {
         // silently fail
       }
@@ -400,7 +418,7 @@ export default function DashboardPage() {
       try {
         const res = await fetch(`/api/calendar-events/${editingEvent.id}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({
             title: editingEvent.title,
             date: editingEvent.date,
