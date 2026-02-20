@@ -38,10 +38,6 @@ model UserLog {
   resourceType  String   @default("AUTH")
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([action])
-  @@index([resourceType])
-  @@index([timestamp])
   @@map("user_logs")
 }
 

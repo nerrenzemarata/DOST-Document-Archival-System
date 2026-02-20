@@ -47,6 +47,7 @@ interface Project {
   assignee: string | null;
   year: string | null;
   companyLogoUrl: string | null;
+  dropdownData: Record<string, unknown> | null;
   createdAt: string;
 }
 
@@ -250,6 +251,26 @@ function DocumentTable({
     year: string;
   }>>([]);
 
+  // Confirmation modal states
+  const [deleteConfirmModal, setDeleteConfirmModal] = useState<{
+    show: boolean;
+    fileName: string;
+    docId?: string;
+    templateItemId?: string;
+    isMultiple?: boolean;
+    count?: number;
+  } | null>(null);
+  const [deleteSuccessModal, setDeleteSuccessModal] = useState<{
+    show: boolean;
+    fileName: string;
+    count?: number;
+  } | null>(null);
+  const [saveSuccessModal, setSaveSuccessModal] = useState<{
+    show: boolean;
+    message: string;
+  } | null>(null);
+  const [savingData, setSavingData] = useState(false);
+
   useEffect(() => {
     if (onProgressUpdate) {
       const { percent, uploadedItems, totalItems } = calculateProgress();
@@ -440,44 +461,71 @@ function DocumentTable({
     }
   };
 
-  const handleDelete = async (doc: ProjectDocument) => {
-    if (!confirm(`Delete "${doc.fileName}"?`)) return;
-
-    try {
-      const res = await fetch(`/api/setup-projects/${projectId}/documents/${doc.id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) throw new Error('Delete failed');
-      await fetchDocuments();
-    } catch {
-      alert('Failed to delete file. Please try again.');
-    }
+  // Show delete confirmation modal for single file
+  const handleDelete = (doc: ProjectDocument) => {
+    setDeleteConfirmModal({
+      show: true,
+      fileName: doc.fileName,
+      docId: doc.id,
+    });
   };
 
-  const handleDeleteAll = async (templateItemId: string) => {
+  // Show delete confirmation modal for all files in an item
+  const handleDeleteAll = (templateItemId: string) => {
     const docs = getDocsForItem(templateItemId);
     if (docs.length === 0) return;
-    const msg = docs.length === 1
-      ? `Delete "${docs[0].fileName}"?`
-      : `Delete all ${docs.length} files for this item?`;
-    if (!confirm(msg)) return;
-    try {
-      await Promise.all(docs.map(d =>
-        fetch(`/api/setup-projects/${projectId}/documents/${d.id}`, { method: 'DELETE', headers: getAuthHeaders() })
-      ));
-      await fetchDocuments();
-    } catch {
-      alert('Failed to delete files. Please try again.');
-    }
+    setDeleteConfirmModal({
+      show: true,
+      fileName: docs.length === 1 ? docs[0].fileName : `${docs.length} files`,
+      templateItemId,
+      isMultiple: docs.length > 1,
+      count: docs.length,
+    });
   };
 
-  const handleDeleteSingle = async (docId: string, fileName: string) => {
-    if (!confirm(`Delete "${fileName}"?`)) return;
+  // Show delete confirmation modal for single file by ID
+  const handleDeleteSingle = (docId: string, fileName: string) => {
+    setDeleteConfirmModal({
+      show: true,
+      fileName,
+      docId,
+    });
+  };
+
+  // Confirm and execute delete
+  const confirmDelete = async () => {
+    if (!deleteConfirmModal) return;
+
     try {
-      await fetch(`/api/setup-projects/${projectId}/documents/${docId}`, { method: 'DELETE', headers: getAuthHeaders() });
-      await fetchDocuments();
+      if (deleteConfirmModal.templateItemId) {
+        // Delete all files for this item
+        const docs = getDocsForItem(deleteConfirmModal.templateItemId);
+        await Promise.all(docs.map(d =>
+          fetch(`/api/setup-projects/${projectId}/documents/${d.id}`, { method: 'DELETE', headers: getAuthHeaders() })
+        ));
+        await fetchDocuments();
+        setDeleteConfirmModal(null);
+        setDeleteSuccessModal({
+          show: true,
+          fileName: deleteConfirmModal.fileName,
+          count: deleteConfirmModal.count,
+        });
+      } else if (deleteConfirmModal.docId) {
+        // Delete single file
+        const res = await fetch(`/api/setup-projects/${projectId}/documents/${deleteConfirmModal.docId}`, {
+          method: 'DELETE',
+          headers: getAuthHeaders(),
+        });
+        if (!res.ok) throw new Error('Delete failed');
+        await fetchDocuments();
+        setDeleteConfirmModal(null);
+        setDeleteSuccessModal({
+          show: true,
+          fileName: deleteConfirmModal.fileName,
+        });
+      }
     } catch {
+      setDeleteConfirmModal(null);
       alert('Failed to delete file. Please try again.');
     }
   };
@@ -486,9 +534,37 @@ function DocumentTable({
     setDropdownSelections(prev => ({ ...prev, [docId]: value }));
   };
 
-  const handleSaveDropdownSelection = (docId: number) => {
-    // Save the selection (you can add API call here if needed)
-    alert(`Selection saved: ${dropdownSelections[docId]}`);
+  // Save dropdown data to API
+  const saveDropdownData = async (data: Record<string, unknown>, successMessage: string) => {
+    setSavingData(true);
+    try {
+      const res = await fetch(`/api/setup-projects/${projectId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ dropdownData: data }),
+      });
+      if (!res.ok) throw new Error('Save failed');
+      setSaveSuccessModal({ show: true, message: successMessage });
+    } catch {
+      alert('Failed to save. Please try again.');
+    } finally {
+      setSavingData(false);
+    }
+  };
+
+  const handleSaveDropdownSelection = async (docId: number) => {
+    const value = dropdownSelections[docId];
+    if (!value) {
+      alert('Please select an option first.');
+      return;
+    }
+    await saveDropdownData(
+      { [`selection_${docId}`]: value, ...dropdownSelections },
+      `Selection "${value}" saved successfully!`
+    );
   };
 
   const addInterventionItem = () => {
@@ -585,10 +661,14 @@ function DocumentTable({
                                 
                                 {interventionInputs.length > 0 && (
                                   <button
-                                    onClick={() => alert(`Saved ${interventionInputs.length} intervention item(s)`)}
-                                    className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors ml-auto"
+                                    onClick={() => saveDropdownData(
+                                      { interventionItems: interventionInputs },
+                                      `${interventionInputs.length} intervention item(s) saved successfully!`
+                                    )}
+                                    disabled={savingData}
+                                    className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors ml-auto disabled:bg-[#ccc] disabled:cursor-not-allowed"
                                   >
-                                    Save All Items
+                                    {savingData ? 'Saving...' : 'Save All Items'}
                                   </button>
                                 )}
                               </div>
@@ -712,10 +792,10 @@ function DocumentTable({
                               </select>
                               <button
                                 onClick={() => handleSaveDropdownSelection(doc.id)}
-                                disabled={!dropdownSelections[doc.id]}
+                                disabled={!dropdownSelections[doc.id] || savingData}
                                 className="bg-[#2e7d32] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1b5e20] disabled:bg-[#ccc] disabled:cursor-not-allowed transition-colors"
                               >
-                                Save
+                                {savingData ? 'Saving...' : 'Save'}
                               </button>
                             </div>
                             
@@ -858,11 +938,14 @@ function DocumentTable({
                                 ))}
                               </select>
                               <button
-                                onClick={() => alert(`Abstract type saved: ${abstractQuotationType}`)}
-                                disabled={!abstractQuotationType}
+                                onClick={() => saveDropdownData(
+                                  { abstractQuotationType },
+                                  `Abstract type "${abstractQuotationType}" saved successfully!`
+                                )}
+                                disabled={!abstractQuotationType || savingData}
                                 className="bg-[#2e7d32] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1b5e20] disabled:bg-[#ccc] disabled:cursor-not-allowed transition-colors"
                               >
-                                Save
+                                {savingData ? 'Saving...' : 'Save'}
                               </button>
                             </div>
                           </td>
@@ -1269,13 +1352,14 @@ function DocumentTable({
                                 + Add More Row
                               </button>
                               <button
-                                onClick={() => {
-                                  alert(`Saved ${clearanceUntagRows.length} row(s)`);
-                                  console.log('Clearance to Untag data:', clearanceUntagRows);
-                                }}
-                                className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors ml-auto"
+                                onClick={() => saveDropdownData(
+                                  { clearanceUntagRows },
+                                  `${clearanceUntagRows.length} row(s) saved successfully!`
+                                )}
+                                disabled={savingData}
+                                className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors ml-auto disabled:bg-[#ccc] disabled:cursor-not-allowed"
                               >
-                                Save All
+                                {savingData ? 'Saving...' : 'Save All'}
                               </button>
                             </div>
                           </div>
@@ -1387,13 +1471,14 @@ function DocumentTable({
                             {completionReportRows.length > 0 && (
                               <div className="flex justify-end pt-2">
                                 <button
-                                  onClick={() => {
-                                    alert(`Saved ${completionReportRows.length} completion report(s)`);
-                                    console.log('Completion Report data:', completionReportRows);
-                                  }}
-                                  className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors"
+                                  onClick={() => saveDropdownData(
+                                    { completionReportRows },
+                                    `${completionReportRows.length} completion report(s) saved successfully!`
+                                  )}
+                                  disabled={savingData}
+                                  className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
                                 >
-                                  Save All
+                                  {savingData ? 'Saving...' : 'Save All'}
                                 </button>
                               </div>
                             )}
@@ -1512,13 +1597,14 @@ function DocumentTable({
                           {annualPISRows.length > 0 && (
                             <div className="flex justify-end pt-2">
                               <button
-                                onClick={() => {
-                                  alert(`Saved ${annualPISRows.length} Annual PIS report(s)`);
-                                  console.log('Annual PIS data:', annualPISRows);
-                                }}
-                                className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors"
+                                onClick={() => saveDropdownData(
+                                  { annualPISRows },
+                                  `${annualPISRows.length} Annual PIS report(s) saved successfully!`
+                                )}
+                                disabled={savingData}
+                                className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
                               >
-                                Save All
+                                {savingData ? 'Saving...' : 'Save All'}
                               </button>
                             </div>
                           )}
@@ -1706,13 +1792,14 @@ function DocumentTable({
                           {completionReportRows.length > 0 && (
                             <div className="flex justify-end pt-2">
                               <button
-                                onClick={() => {
-                                  alert(`Saved ${completionReportRows.length} report(s)`);
-                                  console.log('Graduation Report data:', completionReportRows);
-                                }}
-                                className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors"
+                                onClick={() => saveDropdownData(
+                                  { graduationReportRows: completionReportRows },
+                                  `${completionReportRows.length} report(s) saved successfully!`
+                                )}
+                                disabled={savingData}
+                                className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
                               >
-                                Save All
+                                {savingData ? 'Saving...' : 'Save All'}
                               </button>
                             </div>
                           )}
@@ -1761,17 +1848,28 @@ function DocumentTable({
                             const ext = d.fileName.split('.').pop()?.toUpperCase() || 'FILE';
                             const extColor = ext === 'PDF' ? '#e53935' : ext === 'DOCX' || ext === 'DOC' ? '#1565c0' : ext === 'XLSX' || ext === 'XLS' ? '#2e7d32' : ext === 'PNG' || ext === 'JPG' || ext === 'JPEG' ? '#f57c00' : '#607d8b';
                             return (
-                              <button
+                              <div
                                 key={d.id}
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#f5f7fa', border: '1px solid #e0e0e0', borderRadius: '5px', padding: '2px 6px', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, transition: 'background 0.15s' }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = '#e8ecf1')}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = '#f5f7fa')}
-                                onClick={() => { setZoomLevel(100); setImgPan({ x: 0, y: 0 }); setPreviewDoc(d); }}
-                                title={d.fileName}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#f5f7fa', border: '1px solid #e0e0e0', borderRadius: '5px', padding: '2px 4px 2px 6px', whiteSpace: 'nowrap', flexShrink: 0 }}
                               >
-                                <span style={{ flexShrink: 0, fontSize: '7px', fontWeight: 700, color: '#fff', padding: '1px 3px', borderRadius: '2px', backgroundColor: extColor }}>{ext}</span>
-                                <span style={{ fontSize: '10px', color: '#333', maxWidth: '70px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.fileName}</span>
-                              </button>
+                                <button
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                                  onClick={() => { setZoomLevel(100); setImgPan({ x: 0, y: 0 }); setPreviewDoc(d); }}
+                                  title={`View ${d.fileName}`}
+                                >
+                                  <span style={{ flexShrink: 0, fontSize: '7px', fontWeight: 700, color: '#fff', padding: '1px 3px', borderRadius: '2px', backgroundColor: extColor }}>{ext}</span>
+                                  <span style={{ fontSize: '10px', color: '#333', maxWidth: '60px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.fileName}</span>
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDeleteSingle(d.id, d.fileName); }}
+                                  title={`Delete ${d.fileName}`}
+                                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '14px', height: '14px', borderRadius: '50%', background: '#e0e0e0', border: 'none', cursor: 'pointer', padding: 0, marginLeft: '2px', transition: 'background 0.15s' }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = '#c62828')}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = '#e0e0e0')}
+                                >
+                                  <Icon icon="mdi:close" width={10} height={10} style={{ color: '#666' }} />
+                                </button>
+                              </div>
                             );
                           })}
                           {hasMore && (
@@ -1947,6 +2045,81 @@ function DocumentTable({
           <button
             className="py-2.5 px-10 bg-[#2e7d32] text-white border-none rounded-lg text-[14px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-[#1b5e20]"
             onClick={() => setUploadSuccess(null)}
+          >
+            Okay
+          </button>
+        </div>
+      </div>
+    )}
+
+    {/* Delete Confirmation Modal */}
+    {deleteConfirmModal?.show && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1200]" onClick={() => setDeleteConfirmModal(null)}>
+        <div className="bg-white rounded-2xl w-full max-w-[400px] py-8 px-10 shadow-[0_12px_40px_rgba(0,0,0,0.25)] text-center" onClick={(e) => e.stopPropagation()}>
+          <div className="w-14 h-14 rounded-full bg-[#ffebee] flex items-center justify-center mx-auto mb-4">
+            <Icon icon="mdi:delete-alert" width={36} height={36} color="#c62828" />
+          </div>
+          <h3 className="text-lg font-bold text-[#333] m-0 mb-3">Confirm Delete</h3>
+          <p className="text-[14px] text-[#666] m-0 mb-6">
+            {deleteConfirmModal.isMultiple
+              ? `Are you sure you want to delete all ${deleteConfirmModal.count} files?`
+              : `Are you sure you want to delete "${deleteConfirmModal.fileName}"?`
+            }
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              className="py-2.5 px-8 bg-white text-[#333] border border-[#d0d0d0] rounded-lg text-[14px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-[#f5f5f5]"
+              onClick={() => setDeleteConfirmModal(null)}
+            >
+              Cancel
+            </button>
+            <button
+              className="py-2.5 px-8 bg-[#c62828] text-white border-none rounded-lg text-[14px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-[#b71c1c]"
+              onClick={confirmDelete}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Delete Success Modal */}
+    {deleteSuccessModal?.show && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1200]" onClick={() => setDeleteSuccessModal(null)}>
+        <div className="bg-white rounded-2xl w-full max-w-[400px] py-8 px-10 shadow-[0_12px_40px_rgba(0,0,0,0.25)] text-center" onClick={(e) => e.stopPropagation()}>
+          <div className="w-14 h-14 rounded-full bg-[#e8f5e9] flex items-center justify-center mx-auto mb-4">
+            <Icon icon="mdi:check-circle" width={36} height={36} color="#2e7d32" />
+          </div>
+          <h3 className="text-lg font-bold text-[#333] m-0 mb-3">Deleted Successfully!</h3>
+          <p className="text-[14px] text-[#666] m-0 mb-6">
+            {deleteSuccessModal.count && deleteSuccessModal.count > 1
+              ? `${deleteSuccessModal.count} files have been deleted.`
+              : `"${deleteSuccessModal.fileName}" has been deleted.`
+            }
+          </p>
+          <button
+            className="py-2.5 px-10 bg-[#2e7d32] text-white border-none rounded-lg text-[14px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-[#1b5e20]"
+            onClick={() => setDeleteSuccessModal(null)}
+          >
+            Okay
+          </button>
+        </div>
+      </div>
+    )}
+
+    {/* Save Success Modal */}
+    {saveSuccessModal?.show && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1200]" onClick={() => setSaveSuccessModal(null)}>
+        <div className="bg-white rounded-2xl w-full max-w-[400px] py-8 px-10 shadow-[0_12px_40px_rgba(0,0,0,0.25)] text-center" onClick={(e) => e.stopPropagation()}>
+          <div className="w-14 h-14 rounded-full bg-[#e8f5e9] flex items-center justify-center mx-auto mb-4">
+            <Icon icon="mdi:check-circle" width={36} height={36} color="#2e7d32" />
+          </div>
+          <h3 className="text-lg font-bold text-[#333] m-0 mb-3">Saved Successfully!</h3>
+          <p className="text-[14px] text-[#666] m-0 mb-6">{saveSuccessModal.message}</p>
+          <button
+            className="py-2.5 px-10 bg-[#2e7d32] text-white border-none rounded-lg text-[14px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-[#1b5e20]"
+            onClick={() => setSaveSuccessModal(null)}
           >
             Okay
           </button>

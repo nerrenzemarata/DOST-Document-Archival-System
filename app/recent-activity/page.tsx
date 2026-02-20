@@ -204,6 +204,32 @@ function groupByDate(activities: Activity[]): Record<string, Activity[]> {
   }, {} as Record<string, Activity[]>);
 }
 
+// View Icon
+const ViewIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+
+// Parse details JSON safely
+function parseDetails(details?: string): Record<string, unknown> {
+  if (!details) return {};
+  try {
+    return JSON.parse(details);
+  } catch {
+    return {};
+  }
+}
+
+// Format resource type for display
+function formatResourceType(resourceType: string): string {
+  return resourceType
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export default function RecentActivity() {
   const [activeTab, setActiveTab] = useState<"all" | "my">("all");
   const [search, setSearch] = useState("");
@@ -213,6 +239,7 @@ export default function RecentActivity() {
   const [stats, setStats] = useState<Stats>({ total: 0, today: 0, thisWeek: 0 });
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [viewModal, setViewModal] = useState<Activity | null>(null);
 
   const fetchActivities = useCallback(async () => {
     setLoading(true);
@@ -513,11 +540,259 @@ export default function RecentActivity() {
                     </span>
                   </div>
                 </div>
+                <button
+                  onClick={() => setViewModal(activity)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "6px 14px",
+                    background: "#f0f4f7",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 6,
+                    color: "#555",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#1a6b7a";
+                    e.currentTarget.style.color = "#fff";
+                    e.currentTarget.style.borderColor = "#1a6b7a";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#f0f4f7";
+                    e.currentTarget.style.color = "#555";
+                    e.currentTarget.style.borderColor = "#e2e8f0";
+                  }}
+                >
+                  <ViewIcon />
+                  View
+                </button>
               </div>
             ))}
           </div>
         ))}
       </div>
+
+      {/* Activity Details Modal */}
+      {viewModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1200,
+          }}
+          onClick={() => setViewModal(null)}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 16,
+              width: "100%",
+              maxWidth: 500,
+              maxHeight: "90vh",
+              overflow: "auto",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: "20px 24px",
+              borderBottom: "1px solid #e2e8f0",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <ActionIcon action={viewModal.action} />
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#333" }}>
+                    Activity Details
+                  </h3>
+                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "#888" }}>
+                    {formatDate(viewModal.timestamp)} at {formatTime(viewModal.timestamp)}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewModal(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  fontSize: 24,
+                  color: "#999",
+                  cursor: "pointer",
+                  padding: 0,
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: "20px 24px" }}>
+              {/* Action Summary */}
+              <div style={{
+                background: "#f8fafc",
+                borderRadius: 10,
+                padding: 16,
+                marginBottom: 20,
+              }}>
+                <p style={{ margin: 0, fontSize: 14, color: "#333", lineHeight: 1.5 }}>
+                  {formatActivityDescription(viewModal)}
+                </p>
+              </div>
+
+              {/* Details Grid */}
+              <div style={{ display: "grid", gap: 16 }}>
+                {/* Action Type */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: "#666" }}>Action Type</span>
+                  <span style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: "4px 12px",
+                    borderRadius: 999,
+                    background: ACTION_COLORS[viewModal.action.toLowerCase()]?.bg || "#1a6b7a",
+                    color: "#fff",
+                    textTransform: "capitalize",
+                  }}>
+                    {viewModal.action.toLowerCase()}
+                  </span>
+                </div>
+
+                {/* Resource Type */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: "#666" }}>Resource Type</span>
+                  <span style={{ fontSize: 13, fontWeight: 500, color: "#333" }}>
+                    {formatResourceType(viewModal.resourceType)}
+                  </span>
+                </div>
+
+                {/* Resource Title */}
+                {viewModal.resourceTitle && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <span style={{ fontSize: 13, color: "#666" }}>Resource Name</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#333", textAlign: "right", maxWidth: "60%" }}>
+                      {viewModal.resourceTitle}
+                    </span>
+                  </div>
+                )}
+
+                {/* Resource ID */}
+                {viewModal.resourceId && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: 13, color: "#666" }}>Resource ID</span>
+                    <span style={{ fontSize: 11, fontFamily: "monospace", color: "#888", background: "#f0f4f7", padding: "2px 8px", borderRadius: 4 }}>
+                      {viewModal.resourceId.slice(0, 8)}...
+                    </span>
+                  </div>
+                )}
+
+                {/* Performed By */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: "#666" }}>Performed By</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {viewModal.user.profileImageUrl ? (
+                      <img
+                        src={viewModal.user.profileImageUrl}
+                        alt={viewModal.user.fullName}
+                        style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      <div style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: "50%",
+                        background: "#1a6b7a",
+                        color: "#fff",
+                        fontSize: 11,
+                        fontWeight: 600,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}>
+                        {viewModal.user.fullName.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span style={{ fontSize: 13, fontWeight: 500, color: "#333" }}>
+                      {viewModal.user.fullName}
+                    </span>
+                  </div>
+                </div>
+
+                {/* User Role */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: "#666" }}>User Role</span>
+                  <span style={{ fontSize: 13, color: "#333", textTransform: "capitalize" }}>
+                    {viewModal.user.role.toLowerCase()}
+                  </span>
+                </div>
+
+                {/* User Email */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: "#666" }}>Email</span>
+                  <span style={{ fontSize: 13, color: "#1a6b7a" }}>
+                    {viewModal.user.email}
+                  </span>
+                </div>
+
+                {/* Additional Details */}
+                {viewModal.details && Object.keys(parseDetails(viewModal.details)).length > 0 && (
+                  <>
+                    <div style={{ borderTop: "1px solid #e2e8f0", margin: "8px 0" }} />
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: -8 }}>
+                      Additional Details
+                    </div>
+                    {Object.entries(parseDetails(viewModal.details)).map(([key, value]) => (
+                      <div key={key} style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <span style={{ fontSize: 13, color: "#666", textTransform: "capitalize" }}>
+                          {key.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim()}
+                        </span>
+                        <span style={{ fontSize: 13, color: "#333", textAlign: "right", maxWidth: "60%", wordBreak: "break-word" }}>
+                          {Array.isArray(value) ? value.join(', ') : String(value)}
+                        </span>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{
+              padding: "16px 24px",
+              borderTop: "1px solid #e2e8f0",
+              display: "flex",
+              justifyContent: "flex-end",
+            }}>
+              <button
+                onClick={() => setViewModal(null)}
+                style={{
+                  padding: "10px 24px",
+                  background: "#1a6b7a",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
     </DashboardLayout>
   );
