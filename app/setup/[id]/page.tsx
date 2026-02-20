@@ -448,13 +448,12 @@ function DocumentTable({
                                 {interventionInputs.length > 0 && (
                                   <button
                                     onClick={() => saveDropdownData(
-                                      { interventionItems: interventionInputs },
-                                      `${interventionInputs.length} intervention item(s) saved successfully!`
+                                      { interventionItems: interventionInputs }
                                     )}
-                                    disabled={savingData}
+                                    disabled={savingDropdown}
                                     className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors ml-auto disabled:bg-[#ccc] disabled:cursor-not-allowed"
                                   >
-                                    {savingData ? 'Saving...' : 'Save All Items'}
+                                    {savingDropdown ? 'Saving...' : 'Save All Items'}
                                   </button>
                                 )}
                               </div>
@@ -578,10 +577,10 @@ function DocumentTable({
                               </select>
                               <button
                                 onClick={() => handleSaveDropdownSelection(doc.id)}
-                                disabled={!dropdownSelections[doc.id] || savingData}
+                                disabled={!dropdownSelections[doc.id] || savingDropdown}
                                 className="bg-[#2e7d32] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1b5e20] disabled:bg-[#ccc] disabled:cursor-not-allowed transition-colors"
                               >
-                                {savingData ? 'Saving...' : 'Save'}
+                                {savingDropdown ? 'Saving...' : 'Save'}
                               </button>
                             </div>
                             
@@ -725,13 +724,12 @@ function DocumentTable({
                               </select>
                               <button
                                 onClick={() => saveDropdownData(
-                                  { abstractQuotationType },
-                                  `Abstract type "${abstractQuotationType}" saved successfully!`
+                                  { abstractQuotationType }
                                 )}
-                                disabled={!abstractQuotationType || savingData}
+                                disabled={!abstractQuotationType || savingDropdown}
                                 className="bg-[#2e7d32] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1b5e20] disabled:bg-[#ccc] disabled:cursor-not-allowed transition-colors"
                               >
-                                {savingData ? 'Saving...' : 'Save'}
+                                {savingDropdown ? 'Saving...' : 'Save'}
                               </button>
                             </div>
                           </td>
@@ -1139,13 +1137,12 @@ function DocumentTable({
                               </button>
                               <button
                                 onClick={() => saveDropdownData(
-                                  { clearanceUntagRows },
-                                  `${clearanceUntagRows.length} row(s) saved successfully!`
+                                  { clearanceUntagRows }
                                 )}
-                                disabled={savingData}
+                                disabled={savingDropdown}
                                 className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors ml-auto disabled:bg-[#ccc] disabled:cursor-not-allowed"
                               >
-                                {savingData ? 'Saving...' : 'Save All'}
+                                {savingDropdown ? 'Saving...' : 'Save All'}
                               </button>
                             </div>
                           </div>
@@ -1258,13 +1255,12 @@ function DocumentTable({
                               <div className="flex justify-end pt-2">
                                 <button
                                   onClick={() => saveDropdownData(
-                                    { completionReportRows },
-                                    `${completionReportRows.length} completion report(s) saved successfully!`
+                                    { completionReportRows }
                                   )}
-                                  disabled={savingData}
+                                  disabled={savingDropdown}
                                   className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
                                 >
-                                  {savingData ? 'Saving...' : 'Save All'}
+                                  {savingDropdown ? 'Saving...' : 'Save All'}
                                 </button>
                               </div>
                             )}
@@ -1384,13 +1380,12 @@ function DocumentTable({
                             <div className="flex justify-end pt-2">
                               <button
                                 onClick={() => saveDropdownData(
-                                  { annualPISRows },
-                                  `${annualPISRows.length} Annual PIS report(s) saved successfully!`
+                                  { annualPISRows }
                                 )}
-                                disabled={savingData}
+                                disabled={savingDropdown}
                                 className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
                               >
-                                {savingData ? 'Saving...' : 'Save All'}
+                                {savingDropdown ? 'Saving...' : 'Save All'}
                               </button>
                             </div>
                           )}
@@ -1579,13 +1574,12 @@ function DocumentTable({
                             <div className="flex justify-end pt-2">
                               <button
                                 onClick={() => saveDropdownData(
-                                  { graduationReportRows: completionReportRows },
-                                  `${completionReportRows.length} report(s) saved successfully!`
+                                  { graduationReportRows: completionReportRows }
                                 )}
-                                disabled={savingData}
+                                disabled={savingDropdown}
                                 className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
                               >
-                                {savingData ? 'Saving...' : 'Save All'}
+                                {savingDropdown ? 'Saving...' : 'Save All'}
                               </button>
                             </div>
                           )}
