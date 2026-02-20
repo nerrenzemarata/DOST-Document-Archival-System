@@ -47,7 +47,8 @@
       "Bash(npm run build:*)",
       "Bash(git checkout:*)",
       "Bash(npx eslint:*)",
-      "Bash(git diff:*)"
+      "Bash(git diff:*)",
+      "Bash(find:*)"
     ]
   }
 }
