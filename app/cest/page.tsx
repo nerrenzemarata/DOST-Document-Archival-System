@@ -5,6 +5,24 @@ import { Icon } from '@iconify/react';
 import Link from 'next/link';
 import DashboardLayout from '../components/DashboardLayout';
 
+// Helper to get userId for activity logging
+function getUserId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const stored = localStorage.getItem('user');
+    if (!stored) return null;
+    return JSON.parse(stored)?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+// Helper to create headers with userId
+function getAuthHeaders(): HeadersInit {
+  const userId = getUserId();
+  return userId ? { 'x-user-id': userId } : {};
+}
+
 interface CestProject {
   id: string;
   code: string;
@@ -211,6 +229,26 @@ export default function CestPage() {
     { id: 'other-funding', label: 'Total Other Funding Source', value: String(otherCount), isAmount: false },
   ];
 
+  const handleDeleteSelected = async () => {
+    if (selectedProjects.length === 0) return;
+    const confirmMsg = selectedProjects.length === 1
+      ? 'Are you sure you want to delete this project?'
+      : `Are you sure you want to delete ${selectedProjects.length} projects?`;
+    if (!confirm(confirmMsg)) return;
+    setDeleting(true);
+    try {
+      await Promise.all(selectedProjects.map(id =>
+        fetch(`/api/cest-projects/${id}`, { method: 'DELETE', headers: getAuthHeaders() })
+      ));
+      setSelectedProjects([]);
+      await fetchProjects();
+    } catch {
+      console.error('Failed to delete projects');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const municipalities = formData.province && addressData[formData.province] ? Object.keys(addressData[formData.province]) : [];
   const barangays = formData.province && formData.municipality && addressData[formData.province]?.[formData.municipality] ? addressData[formData.province][formData.municipality] : [];
 
@@ -300,7 +338,7 @@ export default function CestPage() {
       if (editingProjectId) {
         const res = await fetch(`/api/cest-projects/${editingProjectId}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(payload),
         });
         if (!res.ok) { const e = await res.json().catch(() => null); throw new Error(e?.error || 'Failed to update project'); }
@@ -309,7 +347,7 @@ export default function CestPage() {
         payload.code = `CEST-${codeNum}`;
         const res = await fetch('/api/cest-projects', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(payload),
         });
         if (!res.ok) { const e = await res.json().catch(() => null); throw new Error(e?.error || 'Failed to save project'); }
@@ -322,19 +360,6 @@ export default function CestPage() {
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedProjects.length === 0) return;
-    const confirmMsg = selectedProjects.length === 1 ? 'Are you sure you want to delete this project?' : `Are you sure you want to delete ${selectedProjects.length} projects?`;
-    if (!confirm(confirmMsg)) return;
-    setDeleting(true);
-    try {
-      await Promise.all(selectedProjects.map(id => fetch(`/api/cest-projects/${id}`, { method: 'DELETE' })));
-      setSelectedProjects([]);
-      await fetchProjects();
-    } catch { console.error('Failed to delete projects'); }
-    finally { setDeleting(false); }
   };
 
   return (
