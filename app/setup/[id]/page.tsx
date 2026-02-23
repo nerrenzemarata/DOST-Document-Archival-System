@@ -457,6 +457,16 @@ function DocumentTable({
     catch { alert('Failed to delete files.'); }
   };
 
+  const handleDeleteSingle = async (docId: string, fileName: string) => {
+    if (!confirm(`Delete "${fileName}"?`)) return;
+    try {
+      await fetch(`/api/setup-projects/${projectId}/documents/${docId}`, { method: 'DELETE' });
+      await fetchDocuments();
+    } catch {
+      alert('Failed to delete file.');
+    }
+  };
+
   // Save dropdown data to API (merges with existing data)
   const saveDropdownData = async (data: Record<string, unknown>, successMessage: string) => {
     setSavingData(true);
@@ -734,7 +744,7 @@ function DocumentTable({
                                     disabled={savingData || !isEditMode}
                                     className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors ml-auto disabled:bg-[#ccc] disabled:cursor-not-allowed"
                                   >
-                                    {savingDropdown ? 'Saving...' : 'Save All Items'}
+                                    {savingData ? 'Saving...' : 'Save All Items'}
                                   </button>
                                 )}
                               </div>
@@ -868,7 +878,7 @@ function DocumentTable({
                                 disabled={!dropdownSelections[doc.id] || savingData || !isEditMode}
                                 className="bg-[#2e7d32] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1b5e20] disabled:bg-[#ccc] disabled:cursor-not-allowed transition-colors"
                               >
-                                {savingDropdown ? 'Saving...' : 'Save'}
+                                {savingData ? 'Saving...' : 'Save'}
                               </button>
                             </div>
                             
@@ -1018,7 +1028,7 @@ function DocumentTable({
                                 disabled={!abstractQuotationType || savingData || !isEditMode}
                                 className="bg-[#2e7d32] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1b5e20] disabled:bg-[#ccc] disabled:cursor-not-allowed transition-colors"
                               >
-                                {savingDropdown ? 'Saving...' : 'Save'}
+                                {savingData ? 'Saving...' : 'Save'}
                               </button>
                             </div>
                           </td>
@@ -1635,7 +1645,7 @@ function DocumentTable({
                                 disabled={savingData || !isEditMode}
                                 className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors ml-auto disabled:bg-[#ccc] disabled:cursor-not-allowed"
                               >
-                                {savingDropdown ? 'Saving...' : 'Save All'}
+                                {savingData ? 'Saving...' : 'Save All'}
                               </button>
                             </div>
                           </div>
@@ -1757,7 +1767,7 @@ function DocumentTable({
                                   disabled={savingData || !isEditMode}
                                   className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
                                 >
-                                  {savingDropdown ? 'Saving...' : 'Save All'}
+                                  {savingData ? 'Saving...' : 'Save All'}
                                 </button>
                               </div>
                             )}
@@ -1887,7 +1897,7 @@ function DocumentTable({
                                 disabled={savingData || !isEditMode}
                                 className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
                               >
-                                {savingDropdown ? 'Saving...' : 'Save All'}
+                                {savingData ? 'Saving...' : 'Save All'}
                               </button>
                             </div>
                           )}
@@ -2186,7 +2196,7 @@ function DocumentTable({
                                 disabled={savingData || !isEditMode}
                                 className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
                               >
-                                {savingDropdown ? 'Saving...' : 'Save All'}
+                                {savingData ? 'Saving...' : 'Save All'}
                               </button>
                             </div>
                           )}
@@ -2375,6 +2385,25 @@ function DocumentTable({
             ))}
           </div>
           <button className="py-2.5 px-10 bg-[#2e7d32] text-white border-none rounded-lg text-[14px] font-semibold cursor-pointer hover:bg-[#1b5e20]" onClick={()=>setUploadSuccess(null)}>Okay</button>
+        </div>
+      </div>
+    )}
+
+    {/* Save Success Modal */}
+    {saveSuccessModal?.show && (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[1200]" onClick={() => setSaveSuccessModal(null)}>
+        <div className="bg-white rounded-2xl w-full max-w-[400px] py-8 px-10 shadow-[0_12px_40px_rgba(0,0,0,0.25)] text-center" onClick={e => e.stopPropagation()}>
+          <div className="w-14 h-14 rounded-full bg-[#e8f5e9] flex items-center justify-center mx-auto mb-4">
+            <Icon icon="mdi:check-circle" width={36} height={36} color="#2e7d32" />
+          </div>
+          <h3 className="text-lg font-bold text-[#333] m-0 mb-3">Saved Successfully!</h3>
+          <p className="text-[14px] text-[#666] m-0 mb-6">{saveSuccessModal.message}</p>
+          <button
+            className="py-2.5 px-10 bg-[#2e7d32] text-white border-none rounded-lg text-[14px] font-semibold cursor-pointer transition-colors duration-200 hover:bg-[#1b5e20]"
+            onClick={() => setSaveSuccessModal(null)}
+          >
+            Okay
+          </button>
         </div>
       </div>
     )}
