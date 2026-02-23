@@ -330,12 +330,13 @@ function DocumentTable({
     }
   }, [documents, annualPISRows, completionReportRows, moaSupplementalCount, dropdownSelections, fundReleaseDateRows, qprRows]);
 
-  const calculateProgress = () => {
-    let totalItems = 0;
-    let uploadedItems = 0;
+  const getDocsForItem = (templateItemId: string): ProjectDocument[] => {
+    return documents.filter(d => d.templateItemId === templateItemId);
+  };
 
-  const getDocsForItem = (tid: string) => documents.filter(d => d.templateItemId === tid);
-  const getDocForItem = (tid: string) => documents.find(d => d.templateItemId === tid);
+  const getDocForItem = (templateItemId: string): ProjectDocument | undefined => {
+    return documents.find(d => d.templateItemId === templateItemId);
+  };
 
   const calculateProgress = () => {
     let totalItems = 0, uploadedItems = 0;
@@ -384,14 +385,6 @@ function DocumentTable({
   useEffect(() => { fetchDocuments(); }, [fetchDocuments]);
 
   const toggleDropdown = (key: string) => setExpandedDropdowns(prev => ({ ...prev, [key]: !prev[key] }));
-
-  const getDocsForItem = (templateItemId: string): ProjectDocument[] => {
-    return documents.filter(d => d.templateItemId === templateItemId);
-  };
-
-  const getDocForItem = (templateItemId: string): ProjectDocument | undefined => {
-    return documents.find(d => d.templateItemId === templateItemId);
-  };
 
   const handleUploadClick = (templateItemId: string) => {
     if (!isEditMode) return;
@@ -2169,8 +2162,8 @@ function DocumentTable({
                   <td className="py-2.5 px-3 border-b border-[#eee] align-middle text-[#333]">{doc.label}</td>
                   <td className="py-2.5 px-3 border-b border-[#eee] align-middle">
                     {hasFile ? (() => {
-                      const visibleDocs = allDocsForItem.slice(0, 3);
-                      const hasMore = allDocsForItem.length > 3;
+                      const visibleDocs = allDocs.slice(0, 3);
+                      const hasMore = allDocs.length > 3;
                       return (
                         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap', gap: '4px', alignItems: 'center', justifyContent: 'flex-end' }}>
                           {visibleDocs.map((d) => {
@@ -2205,13 +2198,13 @@ function DocumentTable({
                           })}
                           {hasMore && (
                             <button
-                              onClick={() => setFileListModal(templateItemId)}
-                              title={`Show all ${allDocsForItem.length} files`}
+                              onClick={() => setFileListModal(tid)}
+                              title={`Show all ${allDocs.length} files`}
                               style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#e0e0e0', border: 'none', borderRadius: '5px', padding: '2px 8px', cursor: 'pointer', fontSize: '10px', fontWeight: 700, color: '#555', flexShrink: 0, whiteSpace: 'nowrap' }}
                               onMouseEnter={(e) => (e.currentTarget.style.background = '#ccc')}
                               onMouseLeave={(e) => (e.currentTarget.style.background = '#e0e0e0')}
                             >
-                              +{allDocsForItem.length - 3}
+                              +{allDocs.length - 3}
                             </button>
                           )}
                         </div>
@@ -2230,7 +2223,7 @@ function DocumentTable({
                           isEditMode ? 'bg-[#f5a623] cursor-pointer hover:opacity-80' : 'bg-[#ccc] cursor-not-allowed'
                         } disabled:opacity-50 disabled:cursor-not-allowed`}
                         title={isEditMode ? "Upload" : "View mode - editing disabled"}
-                        onClick={() => handleUploadClick(templateItemId)}
+                        onClick={() => handleUploadClick(tid)}
                         disabled={isUploading || !isEditMode}
                       >
                         {isUploading ? (
@@ -2244,7 +2237,7 @@ function DocumentTable({
                           hasFile && isEditMode ? 'bg-[#c62828] cursor-pointer hover:opacity-80' : 'bg-[#ccc] cursor-not-allowed'
                         }`}
                         title={isEditMode ? "Delete" : "View mode - editing disabled"}
-                        onClick={() => hasFile && isEditMode && handleDeleteAll(templateItemId)}
+                        onClick={() => hasFile && isEditMode && handleDeleteAll(tid)}
                         disabled={!hasFile || !isEditMode}
                       >
                         <Icon icon="mdi:delete-outline" width={14} height={14} />
