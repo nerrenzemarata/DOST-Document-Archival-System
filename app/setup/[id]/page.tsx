@@ -739,7 +739,8 @@ function DocumentTable({
                                 {interventionInputs.length > 0 && (
                                   <button
                                     onClick={() => saveDropdownData(
-                                      { interventionItems: interventionInputs }
+                                      { interventionItems: interventionInputs },
+                                      `${interventionInputs.length} intervention item(s) saved successfully!`
                                     )}
                                     disabled={savingData || !isEditMode}
                                     className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors ml-auto disabled:bg-[#ccc] disabled:cursor-not-allowed"
@@ -864,7 +865,9 @@ function DocumentTable({
                             <div className="flex items-center gap-3">
                               <select
                                 value={dropdownSelections[doc.id] || ''}
-                                onChange={(e) => handleDropdownSelection(doc.id, e.target.value)}
+                                onChange={(e) => {
+                                  setDropdownSelections(prev => ({ ...prev, [doc.id]: e.target.value }));
+                                }}
                                 className={`border border-[#ddd] rounded px-3 py-2 text-xs flex-1 ${!isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                 disabled={!isEditMode}
                               >
@@ -1023,7 +1026,8 @@ function DocumentTable({
                               </select>
                               <button
                                 onClick={() => saveDropdownData(
-                                  { abstractQuotationType }
+                                  { abstractQuotationType },
+                                  `Abstract of Quotation type "${abstractQuotationType}" saved successfully!`
                                 )}
                                 disabled={!abstractQuotationType || savingData || !isEditMode}
                                 className="bg-[#2e7d32] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1b5e20] disabled:bg-[#ccc] disabled:cursor-not-allowed transition-colors"
@@ -1640,7 +1644,8 @@ function DocumentTable({
                               </button>
                               <button
                                 onClick={() => saveDropdownData(
-                                  { clearanceUntagRows }
+                                  { clearanceUntagRows },
+                                  `${clearanceUntagRows.length} clearance to untag row(s) saved successfully!`
                                 )}
                                 disabled={savingData || !isEditMode}
                                 className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors ml-auto disabled:bg-[#ccc] disabled:cursor-not-allowed"
@@ -1762,7 +1767,8 @@ function DocumentTable({
                               <div className="flex justify-end pt-2">
                                 <button
                                   onClick={() => saveDropdownData(
-                                    { completionReportRows }
+                                    { completionReportRows },
+                                    `${completionReportRows.length} completion report(s) saved successfully!`
                                   )}
                                   disabled={savingData || !isEditMode}
                                   className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
@@ -1892,7 +1898,8 @@ function DocumentTable({
                             <div className="flex justify-end pt-2">
                               <button
                                 onClick={() => saveDropdownData(
-                                  { annualPISRows }
+                                  { annualPISRows },
+                                  `${annualPISRows.length} Annual PIS report(s) saved successfully!`
                                 )}
                                 disabled={savingData || !isEditMode}
                                 className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
@@ -1933,7 +1940,7 @@ function DocumentTable({
                             <button
                               onClick={() => {
                                 if (!isEditMode) return;
-                                setQprRows([...qprRows, { quarter: '', date: '' }]);
+                                setQprRows([...qprRows, { quarter: '', year: '' }]);
                               }}
                               disabled={!isEditMode}
                               className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${isEditMode ? 'bg-[#2e7d32] text-white hover:bg-[#1b5e20]' : 'bg-[#ccc] text-white cursor-not-allowed'}`}
@@ -1989,7 +1996,7 @@ function DocumentTable({
                                       className={`w-full border border-[#ddd] rounded px-3 py-2 text-xs ${!isEditMode ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                                     >
                                       <option value="">Select quarter...</option>
-                                      {doc.options.map(q => (
+                                      {(doc.options ?? []).map(q => (
                                         <option key={q} value={q}>{q} - Quarter {q.replace('Q', '')}</option>
                                       ))}
                                     </select>
@@ -2191,7 +2198,8 @@ function DocumentTable({
                             <div className="flex justify-end pt-2">
                               <button
                                 onClick={() => saveDropdownData(
-                                  { graduationReportRows: completionReportRows }
+                                  { graduationReportRows: completionReportRows },
+                                  `${completionReportRows.length} graduation report(s) saved successfully!`
                                 )}
                                 disabled={savingData || !isEditMode}
                                 className="bg-[#1976d2] text-white px-4 py-2 rounded text-xs font-semibold hover:bg-[#1565c0] transition-colors disabled:bg-[#ccc] disabled:cursor-not-allowed"
