@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Icon } from '@iconify/react';
 import Link from 'next/link';
 import 'leaflet/dist/leaflet.css';
+import Image from 'next/image';
 import DashboardLayout from '../components/DashboardLayout';
 
 // Helper to get userId for activity logging
@@ -24,6 +25,11 @@ function getAuthHeaders(): HeadersInit {
   return userId ? { 'x-user-id': userId } : {};
 }
 
+interface PartnerLGU {
+  name: string;
+  logoUrl: string | null;
+}
+
 interface CestProject {
   id: string;
   code: string;
@@ -31,15 +37,28 @@ interface CestProject {
   location: string | null;
   coordinates: string | null;
   beneficiaries: string | null;
+  typeOfBeneficiary: string | null;
   programFunding: string | null;
   status: string | null;
   approvedAmount: number | null;
   releasedAmount: number | null;
+  counterpartAmount: number | null;
   projectDuration: string | null;
   staffAssigned: string | null;
+  assigneeProfileUrl: string | null;
   year: string | null;
   dateOfApproval: string | null;
   companyLogoUrl: string | null;
+  partnerLGUs: PartnerLGU[] | null;
+  categories: string[] | null;
+  emails: string[] | null;
+  contactNumbers: string[] | null;
+}
+
+interface DropdownOption {
+  id: string;
+  type: string;
+  value: string;
 }
 
 function formatCurrency(value: number | null): string {
@@ -112,8 +131,14 @@ export default function CestPage() {
   const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
   const [showAddFunding, setShowAddFunding] = useState(false);
   const [newFundingName, setNewFundingName] = useState('');
-  const [extraFundingOptions, setExtraFundingOptions] = useState<string[]>([]);
+  const [showAddBeneficiaryType, setShowAddBeneficiaryType] = useState(false);
+  const [newBeneficiaryTypeName, setNewBeneficiaryTypeName] = useState('');
   const [mapFlyTarget, setMapFlyTarget] = useState<[number, number] | null>(null);
+
+  // Confirmation modal state
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [confirmationMessage, setConfirmationMessage] = useState('');
+  const [savingOption, setSavingOption] = useState(false);
 
   // ── Dual scrollbar refs (same pattern as SETUP) ──
   const tableScrollRef = useRef<HTMLDivElement>(null);
@@ -122,26 +147,169 @@ export default function CestPage() {
   const isSyncingScroll = useRef(false);
 
   const [formData, setFormData] = useState({
+    projectCode: '',
     projectTitle: '',
     projectDate: '',
     province: '',
     municipality: '',
     barangay: '',
+    villaPurok: '',
     coordinates: '',
     beneficiaries: '',
     typeOfBeneficiary: '',
-    partnerLGU: '',
     cooperatorName: '',
-    contactNumber: '',
-    emailAddress: '',
     programFunding: '',
     status: '',
     approvedAmount: '',
     releasedAmount: '',
+    counterpartAmount: '',
     projectDuration: '',
     dateOfRelease: '',
     companyLogo: null as File | null,
   });
+
+  // Multiple inputs state
+  const [emails, setEmails] = useState<string[]>(['']);
+  const [contactNumbers, setContactNumbers] = useState<string[]>(['']);
+  const [partnerLGUs, setPartnerLGUs] = useState<Array<{ name: string; logoFile: File | null; logoUrl: string | null }>>([{ name: '', logoFile: null, logoUrl: null }]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+
+  // Dropdown options from database
+  const [entryPointOptions, setEntryPointOptions] = useState<DropdownOption[]>([]);
+  const [typeOfBeneficiaryOptions, setTypeOfBeneficiaryOptions] = useState<DropdownOption[]>([]);
+  const [programFundingOptions, setProgramFundingOptions] = useState<DropdownOption[]>([]);
+
+  // Entry Point input state
+  const [newEntryPointInput, setNewEntryPointInput] = useState('');
+  const [showEntryPointInput, setShowEntryPointInput] = useState(false);
+
+  // Load dropdown options from database on mount
+  useEffect(() => {
+    const loadDropdownOptions = async () => {
+      try {
+        const res = await fetch('/api/cest-dropdown-options');
+        if (res.ok) {
+          const options: DropdownOption[] = await res.json();
+          setEntryPointOptions(options.filter(o => o.type === 'entryPoint'));
+          setTypeOfBeneficiaryOptions(options.filter(o => o.type === 'typeOfBeneficiary'));
+          setProgramFundingOptions(options.filter(o => o.type === 'programFunding'));
+        }
+      } catch (err) {
+        console.error('Failed to load dropdown options:', err);
+      }
+    };
+    loadDropdownOptions();
+  }, []);
+
+  // Add new entry point to database
+  const addNewEntryPoint = async () => {
+    const trimmed = newEntryPointInput.trim();
+    if (trimmed && !entryPointOptions.some(o => o.value === trimmed)) {
+      try {
+        const res = await fetch('/api/cest-dropdown-options', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'entryPoint', value: trimmed }),
+        });
+        if (res.ok) {
+          const newOption = await res.json();
+          setEntryPointOptions(prev => [...prev, newOption]);
+          setSelectedCategories(prev => [...prev, trimmed]);
+        }
+      } catch (err) {
+        console.error('Failed to add entry point:', err);
+      }
+    }
+    setNewEntryPointInput('');
+    setShowEntryPointInput(false);
+  };
+
+  // Remove entry point from database
+  const removeEntryPoint = async (option: DropdownOption) => {
+    try {
+      await fetch(`/api/cest-dropdown-options?id=${option.id}`, { method: 'DELETE' });
+      setEntryPointOptions(prev => prev.filter(o => o.id !== option.id));
+      setSelectedCategories(prev => prev.filter(c => c !== option.value));
+    } catch (err) {
+      console.error('Failed to remove entry point:', err);
+    }
+  };
+
+  // Add new type of beneficiary to database
+  const addNewBeneficiaryType = async (value: string): Promise<boolean> => {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+
+    if (typeOfBeneficiaryOptions.some(o => o.value === trimmed)) {
+      // Already exists, just select it
+      handleFormChange('typeOfBeneficiary', trimmed);
+      return true;
+    }
+
+    setSavingOption(true);
+    try {
+      const res = await fetch('/api/cest-dropdown-options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'typeOfBeneficiary', value: trimmed }),
+      });
+      if (res.ok) {
+        const newOption = await res.json();
+        setTypeOfBeneficiaryOptions(prev => [...prev, newOption]);
+        handleFormChange('typeOfBeneficiary', trimmed);
+        setConfirmationMessage(`"${trimmed}" has been added to Type of Beneficiary options.`);
+        setShowConfirmation(true);
+        return true;
+      } else {
+        const error = await res.json().catch(() => null);
+        console.error('Failed to add type of beneficiary:', error);
+        return false;
+      }
+    } catch (err) {
+      console.error('Failed to add type of beneficiary:', err);
+      return false;
+    } finally {
+      setSavingOption(false);
+    }
+  };
+
+  // Add new program funding to database
+  const addNewProgramFunding = async (value: string): Promise<boolean> => {
+    const trimmed = value.trim();
+    if (!trimmed) return false;
+
+    if (programFundingOptions.some(o => o.value === trimmed)) {
+      // Already exists, just select it
+      handleFormChange('programFunding', trimmed);
+      return true;
+    }
+
+    setSavingOption(true);
+    try {
+      const res = await fetch('/api/cest-dropdown-options', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'programFunding', value: trimmed }),
+      });
+      if (res.ok) {
+        const newOption = await res.json();
+        setProgramFundingOptions(prev => [...prev, newOption]);
+        handleFormChange('programFunding', trimmed);
+        setConfirmationMessage(`"${trimmed}" has been added to Program/Funding options.`);
+        setShowConfirmation(true);
+        return true;
+      } else {
+        const error = await res.json().catch(() => null);
+        console.error('Failed to add program funding:', error);
+        return false;
+      }
+    } catch (err) {
+      console.error('Failed to add program funding:', err);
+      return false;
+    } finally {
+      setSavingOption(false);
+    }
+  };
 
   const [existingLogoUrl, setExistingLogoUrl] = useState<string | null>(null);
   const existingLogoUrlRef = useRef<string | null>(null);
@@ -152,16 +320,67 @@ export default function CestPage() {
 
   const resetForm = () => {
     setFormData({
-      projectTitle: '', projectDate: '', province: '', municipality: '', barangay: '', coordinates: '',
-      beneficiaries: '', typeOfBeneficiary: '', partnerLGU: '', cooperatorName: '',
-      contactNumber: '', emailAddress: '', programFunding: '', status: '',
-      approvedAmount: '', releasedAmount: '', projectDuration: '', dateOfRelease: '',
+      projectCode: '', projectTitle: '', projectDate: '', province: '', municipality: '', barangay: '', villaPurok: '', coordinates: '',
+      beneficiaries: '', typeOfBeneficiary: '', cooperatorName: '',
+      programFunding: '', status: '',
+      approvedAmount: '', releasedAmount: '', counterpartAmount: '', projectDuration: '', dateOfRelease: '',
       companyLogo: null,
     });
+    setEmails(['']);
+    setContactNumbers(['']);
+    setPartnerLGUs([{ name: '', logoFile: null, logoUrl: null }]);
+    setSelectedCategories([]);
+    setShowEntryPointInput(false);
+    setNewEntryPointInput('');
     setFormErrors({});
     setSaveError('');
     setEditingProjectId(null);
     setExistingLogoUrlWithRef(null);
+  };
+
+  // Handlers for multiple inputs
+  const handleEmailChange = (index: number, value: string) => {
+    const updated = [...emails];
+    updated[index] = value;
+    setEmails(updated);
+  };
+  const addEmail = () => setEmails(prev => [...prev, '']);
+  const removeEmail = (index: number) => setEmails(prev => prev.filter((_, i) => i !== index));
+
+  const handleContactChange = (index: number, value: string) => {
+    const cleaned = value.replace(/\D/g, '').slice(0, 11);
+    const updated = [...contactNumbers];
+    updated[index] = cleaned;
+    setContactNumbers(updated);
+  };
+  const isContactValid = (num: string) => num.length === 11 && num.startsWith('09');
+  const addContact = () => setContactNumbers(prev => [...prev, '']);
+  const removeContact = (index: number) => setContactNumbers(prev => prev.filter((_, i) => i !== index));
+
+  const handlePartnerLGUNameChange = (index: number, value: string) => {
+    const updated = [...partnerLGUs];
+    updated[index].name = value;
+    setPartnerLGUs(updated);
+  };
+  const handlePartnerLGULogoChange = async (index: number, file: File) => {
+    const logoUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const updated = [...partnerLGUs];
+    updated[index].logoFile = file;
+    updated[index].logoUrl = logoUrl;
+    setPartnerLGUs(updated);
+  };
+  const addPartnerLGU = () => setPartnerLGUs(prev => [...prev, { name: '', logoFile: null, logoUrl: null }]);
+  const removePartnerLGU = (index: number) => setPartnerLGUs(prev => prev.filter((_, i) => i !== index));
+
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(category) ? prev.filter(c => c !== category) : [...prev, category]
+    );
   };
 
   const fetchProjects = async () => {
@@ -223,13 +442,9 @@ export default function CestPage() {
 
   const totalApproved = projects.reduce((sum, p) => sum + (p.approvedAmount ?? 0), 0);
   const totalReleased = projects.reduce((sum, p) => sum + (p.releasedAmount ?? 0), 0);
-  const standardPrograms = ['CEST', 'LGIA', 'SSCP'];
-  const customPrograms = [...new Set(
-    projects.map(p => p.programFunding).filter((f): f is string => !!f && !standardPrograms.includes(f))
-  )];
 
   const cestCount = projects.filter(p => p.programFunding === 'CEST').length;
-  const otherCount = projects.filter(p => p.programFunding && !standardPrograms.includes(p.programFunding)).length;
+  const otherCount = projects.filter(p => p.programFunding && p.programFunding !== 'CEST').length;
 
   const filterCards = [
     { id: 'approved-amount', label: 'Total Approved Amount', value: formatCurrency(totalApproved), isAmount: true },
@@ -291,28 +506,45 @@ export default function CestPage() {
 
   const openEditModal = (project: CestProject) => {
     const parts = project.location?.split(', ') ?? [];
-    const barangay = parts[0] ?? '';
-    const municipality = parts[1] ?? '';
-    const province = parts[2] ?? '';
+    // Location format: "VillaPurok, Barangay, Municipality, Province" or "Barangay, Municipality, Province"
+    let villaPurok = '';
+    let barangay = '';
+    let municipality = '';
+    let province = '';
+    if (parts.length >= 4) {
+      villaPurok = parts[0] ?? '';
+      barangay = parts[1] ?? '';
+      municipality = parts[2] ?? '';
+      province = parts[3] ?? '';
+    } else {
+      barangay = parts[0] ?? '';
+      municipality = parts[1] ?? '';
+      province = parts[2] ?? '';
+    }
     setFormData({
+      projectCode: project.code ?? '',
       projectTitle: project.projectTitle,
       projectDate: project.dateOfApproval ? project.dateOfApproval.slice(0, 10) : '',
-      province, municipality, barangay,
+      province, municipality, barangay, villaPurok,
       coordinates: project.coordinates ?? '',
       beneficiaries: project.beneficiaries ?? '',
-      typeOfBeneficiary: '',
-      partnerLGU: '',
+      typeOfBeneficiary: project.typeOfBeneficiary ?? '',
       cooperatorName: project.staffAssigned ?? '',
-      contactNumber: '',
-      emailAddress: '',
       programFunding: project.programFunding ?? '',
       status: project.status ?? '',
       approvedAmount: project.approvedAmount != null ? String(project.approvedAmount) : '',
       releasedAmount: project.releasedAmount != null ? String(project.releasedAmount) : '',
+      counterpartAmount: project.counterpartAmount != null ? String(project.counterpartAmount) : '',
       projectDuration: project.projectDuration ?? '',
       dateOfRelease: project.dateOfApproval ? project.dateOfApproval.slice(0, 10) : '',
       companyLogo: null,
     });
+    setEmails(project.emails && project.emails.length > 0 ? project.emails : ['']);
+    setContactNumbers(project.contactNumbers && project.contactNumbers.length > 0 ? project.contactNumbers : ['']);
+    setPartnerLGUs(project.partnerLGUs && project.partnerLGUs.length > 0
+      ? project.partnerLGUs.map(p => ({ name: p.name, logoFile: null, logoUrl: p.logoUrl }))
+      : [{ name: '', logoFile: null, logoUrl: null }]);
+    setSelectedCategories(project.categories ?? []);
     setExistingLogoUrlWithRef(project.companyLogoUrl);
     setEditingProjectId(project.id);
     setFormErrors({});
@@ -322,6 +554,7 @@ export default function CestPage() {
 
   const handleSaveProject = async () => {
     const errors: Record<string, string> = {};
+    if (!formData.projectCode.trim()) errors.projectCode = 'Project code is required';
     if (!formData.projectTitle.trim()) errors.projectTitle = 'Project title is required';
     if (!formData.programFunding) errors.programFunding = 'Program/Funding is required';
     if (Object.keys(errors).length > 0) { setFormErrors(errors); return; }
@@ -338,23 +571,39 @@ export default function CestPage() {
           reader.readAsDataURL(formData.companyLogo!);
         });
       }
-      const locationParts = [formData.barangay, formData.municipality, formData.province].filter(Boolean);
+
+      // Process partner LGUs with their logos
+      const processedPartnerLGUs = partnerLGUs
+        .filter(p => p.name.trim())
+        .map(p => ({ name: p.name, logoUrl: p.logoUrl }));
+
+      // Location format: "VillaPurok, Barangay, Municipality, Province" if villaPurok is provided
+      const locationParts = [formData.villaPurok, formData.barangay, formData.municipality, formData.province].filter(Boolean);
       const location = locationParts.length > 0 ? locationParts.join(', ') : null;
       const payload: Record<string, unknown> = {
         projectTitle: formData.projectTitle,
         location,
         coordinates: formData.coordinates || null,
         beneficiaries: formData.beneficiaries || null,
+        typeOfBeneficiary: formData.typeOfBeneficiary || null,
         programFunding: formData.programFunding || null,
         status: formData.status || null,
         approvedAmount: formData.approvedAmount ? parseFloat(formData.approvedAmount) : null,
         releasedAmount: formData.releasedAmount ? parseFloat(formData.releasedAmount) : null,
+        counterpartAmount: formData.counterpartAmount ? parseFloat(formData.counterpartAmount) : null,
         projectDuration: formData.projectDuration || null,
         staffAssigned: formData.cooperatorName || null,
         year: formData.projectDate ? new Date(formData.projectDate).getFullYear().toString() : null,
         dateOfApproval: formData.dateOfRelease || null,
+        partnerLGUs: processedPartnerLGUs.length > 0 ? processedPartnerLGUs : null,
+        categories: selectedCategories.length > 0 ? selectedCategories : null,
+        emails: emails.filter(e => e.trim()).length > 0 ? emails.filter(e => e.trim()) : null,
+        contactNumbers: contactNumbers.filter(c => c.trim()).length > 0 ? contactNumbers.filter(c => c.trim()) : null,
       };
       payload.companyLogoUrl = logoUrl;
+
+      // Use user-entered project code
+      payload.code = formData.projectCode.trim();
 
       if (editingProjectId) {
         const res = await fetch(`/api/cest-projects/${editingProjectId}`, {
@@ -364,8 +613,6 @@ export default function CestPage() {
         });
         if (!res.ok) { const e = await res.json().catch(() => null); throw new Error(e?.error || 'Failed to update project'); }
       } else {
-        const codeNum = String(projects.length + 1).padStart(4, '0');
-        payload.code = `CEST-${codeNum}`;
         const res = await fetch('/api/cest-projects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
@@ -388,15 +635,17 @@ export default function CestPage() {
       <main className="flex-1 py-5 px-[30px] bg-[#f5f5f5] overflow-x-auto">
         {/* CEST Header */}
         <div className="flex justify-between items-center bg-white py-[15px] px-[25px] rounded-[15px] mb-5 shadow-[0_2px_8px_rgba(0,0,0,0.05)] gap-[30px]">
-          <div className="flex items-center gap-0">
-            <div className="w-[100px] h-[100px] flex items-center justify-center -mr-2">
-              <img src="/cest-sidebar-logo.png" alt="CEST Logo" className="w-[100px] h-[100px] object-contain" />
-            </div>
+          <div className="flex items-center gap-[15px]">
             <div className="flex flex-col">
-              <h1 className="text-[28px] font-bold text-[#2e7d32] m-0 leading-none">CEST</h1>
-              <p className="text-[10px] text-[#666] m-0 leading-[1.3]">Community Empowerment thru<br/>Science and Technology</p>
+              <Image 
+                src="/cest-logo-text.png" 
+                alt="SETUP 4.0 - Small Enterprise Technology Upgrading Program" 
+                width={160}
+                height={25}
+                style={{ width: '120px', height: 'auto', marginTop: '-13px' }}
+                />
             </div>
-          </div>
+          </div> 
           <div className="flex-1 flex justify-center items-center">
             <div className="relative w-[600px] h-[50px]">
               <Icon icon="mdi:magnify" className="absolute left-[15px] top-1/2 -translate-y-1/2 text-[#999]" width={20} height={20} />
@@ -408,6 +657,7 @@ export default function CestPage() {
             Add New Project
           </button>
         </div>
+
 
         {/* Filter Cards */}
         <div className="flex gap-[15px] mb-5 w-full">
@@ -456,44 +706,35 @@ export default function CestPage() {
                   <th className="w-5 min-w-[10px] text-left py-3 px-2.5 border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal align-middle">
                     <input type="checkbox" className="w-4 h-4 accent-accent cursor-pointer" checked={selectedProjects.length === filteredProjects.length && filteredProjects.length > 0} onChange={(e) => setSelectedProjects(e.target.checked ? filteredProjects.map(p => p.id) : [])} />
                   </th>
-                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[10px] align-middle">Code</th>
-                  <th className="py-3 px-1.5 text-center border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[50px] align-middle">Logo</th>
-                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[250px] align-middle">Project Title</th>
-                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[150px] align-middle">Location</th>
-                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[120px] align-middle">Beneficiaries</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[5px] align-middle">Code</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[280px] align-middle">Project Title</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[180px] align-middle">Location</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[200px] align-middle">Beneficiaries</th>
                   <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[100px] align-middle">Program/<br/>Funding</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[250px] align-middle">Stakeholder</th>
                   <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[80px] align-middle">Status</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[120px] align-middle">Type of<br/>Beneficiary</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[160px] align-middle">Entry Point</th>
                   <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[100px] align-middle">Approved<br/>Amount</th>
                   <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[100px] align-middle">Released Amount</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[100px] align-middle">Counterpart<br/>Amount</th>
                   <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[120px] align-middle">Project Duration</th>
-                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[100px] align-middle">Staff<br/>Assigned</th>
                   <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[50px] align-middle">Year</th>
                   <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[120px] align-middle">Date of Approval (Ref.<br/>Approval Letter)</th>
+                  <th className="py-3 px-1.5 text-left border-b border-[#e0e0e0] bg-[#f9f9f9] font-semibold text-[#333] whitespace-normal min-w-[160px] align-middle">Assignee</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={14} className="text-center py-8 text-[#999]">Loading projects...</td></tr>
+                  <tr><td colSpan={17} className="text-center py-8 text-[#999]">Loading projects...</td></tr>
                 ) : filteredProjects.length === 0 ? (
-                  <tr><td colSpan={14} className="text-center py-8 text-[#999]">No projects found</td></tr>
+                  <tr><td colSpan={17} className="text-center py-8 text-[#999]">No projects found</td></tr>
                 ) : filteredProjects.map((project) => (
                   <tr key={project.id}>
                     <td className="py-3 px-2 text-center border-b border-[#e0e0e0]">
                       <input type="checkbox" className="w-4 h-4 accent-accent cursor-pointer" checked={selectedProjects.includes(project.id)} onChange={(e) => setSelectedProjects(prev => e.target.checked ? [...prev, project.id] : prev.filter(id => id !== project.id))} />
                     </td>
-                    <td className="text-primary font-semibold whitespace-nowrap py-3 px-2 text-left border-b border-[#e0e0e0]">#{project.code.replace(/^0+/, '').padStart(3, '0')}</td>
-
-                    {/* Company Logo */}
-                    <td className="py-3 px-1.5 text-center border-b border-[#e0e0e0]">
-                      {project.companyLogoUrl ? (
-                        <img src={project.companyLogoUrl} alt="Logo" className="w-8 h-8 rounded-full object-cover inline-block border border-[#d0d0d0]" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center inline-flex border border-[#d0d0d0]">
-                          <Icon icon="mdi:domain" width={18} height={18} color="#999" />
-                        </div>
-                      )}
-                    </td>
-
+                    <td className="text-primary font-semibold whitespace-nowrap py-3 px-2 text-left border-b border-[#e0e0e0]">{project.code}</td>
                     <td className="max-w-[300px] text-[#333] font-medium whitespace-normal break-words py-3 px-2 text-left border-b border-[#e0e0e0]"><Link href={`/cest/${project.id}`} className="text-primary no-underline font-medium hover:text-accent hover:underline">{project.projectTitle}</Link></td>
                     <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0] whitespace-normal break-words">{project.location ?? '—'}</td>
                     <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0] whitespace-normal break-words">{project.beneficiaries ?? '—'}</td>
@@ -502,17 +743,81 @@ export default function CestPage() {
                         {project.programFunding ?? '—'}
                       </span>
                     </td>
+                    {/* Stakeholder with Logo */}
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">
+                      {project.partnerLGUs && project.partnerLGUs.length > 0 ? (
+                        <div className="flex flex-col gap-1">
+                          {project.partnerLGUs.slice(0, 2).map((lgu, idx) => (
+                            <div key={idx} className="flex items-center gap-1.5">
+                              {lgu.logoUrl ? (
+                                <img src={lgu.logoUrl} alt={lgu.name} className="w-5 h-5 rounded-full object-cover border border-[#d0d0d0]" />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-[#f0f0f0] flex items-center justify-center border border-[#d0d0d0]">
+                                  <Icon icon="mdi:domain" width={12} height={12} color="#999" />
+                                </div>
+                              )}
+                              <span className="text-[11px] text-[#333]">{lgu.name}</span>
+                            </div>
+                          ))}
+                          {project.partnerLGUs.length > 2 && (
+                            <span className="text-[10px] text-[#666]">+{project.partnerLGUs.length - 2} more</span>
+                          )}
+                        </div>
+                      ) : <span className="text-[#999]">—</span>}
+                    </td>
                     <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">
                       <span className="inline-block py-1 px-3 rounded-[15px] text-[11px] font-medium bg-[#e8f5e9] text-[#2e7d32]">
                         {project.status ?? '—'}
                       </span>
                     </td>
+                    
+
+                    {/* Type of Beneficiary */}
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">
+                      {project.typeOfBeneficiary ? (
+                        <span className="inline-block py-1 px-2 bg-[#f3e5f5] text-[#7b1fa2] rounded text-[10px] font-medium">
+                          {project.typeOfBeneficiary}
+                        </span>
+                      ) : <span className="text-[#999]">—</span>}
+                    </td>
+
+                    {/* Category */}
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">
+                      {project.categories && project.categories.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {project.categories.slice(0, 2).map((cat, idx) => (
+                            <span key={idx} className="inline-block py-0.5 px-1.5 bg-[#fff3e0] text-[#e65100] rounded text-[9px] font-medium">
+                              {cat}
+                            </span>
+                          ))}
+                          {project.categories.length > 2 && (
+                            <span className="text-[9px] text-[#666]">+{project.categories.length - 2}</span>
+                          )}
+                        </div>
+                      ) : <span className="text-[#999]">—</span>}
+                    </td>
+
                     <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{formatCurrency(project.approvedAmount)}</td>
                     <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{formatCurrency(project.releasedAmount)}</td>
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{formatCurrency(project.counterpartAmount)}</td>
                     <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0] whitespace-normal break-words">{project.projectDuration ?? '—'}</td>
-                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0] whitespace-normal break-words">{project.staffAssigned ?? '—'}</td>
                     <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{project.year ?? '—'}</td>
                     <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">{project.dateOfApproval ?? '—'}</td>
+                    {/* Assignee */}
+                    <td className="py-3 px-1.5 text-left border-b border-[#e0e0e0]">
+                      {project.staffAssigned ? (
+                        <div className="flex items-center gap-2">
+                          {project.assigneeProfileUrl ? (
+                            <img src={project.assigneeProfileUrl} alt={project.staffAssigned} className="w-6 h-6 rounded-full object-cover border border-[#d0d0d0]" />
+                          ) : (
+                            <div className="w-6 h-6 rounded-full bg-[#e3f2fd] flex items-center justify-center">
+                              <Icon icon="mdi:account" width={14} height={14} color="#146184" />
+                            </div>
+                          )}
+                          <span className="text-[#333] text-[11px]">{project.staffAssigned}</span>
+                        </div>
+                      ) : <span className="text-[#999]">—</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -551,7 +856,12 @@ export default function CestPage() {
             <p className="text-xs text-[#888] m-0 mb-[15px]">{editingProjectId ? 'Update the CEST project details below' : 'Complete the form to register a new CEST project'}</p>
 
             <div className="flex flex-col gap-3">
-              <div className="grid grid-cols-[1fr_auto] gap-3">
+              <div className="grid grid-cols-[auto_1fr_auto] gap-3">
+                <div className="flex flex-col gap-1 w-[140px]">
+                  <label className="text-[13px] font-semibold text-[#333]">Project Code<span className="text-[#dc3545] ml-0.5">*</span></label>
+                  <input type="text" placeholder="e.g. CEST-001" value={formData.projectCode} onChange={(e) => handleFormChange('projectCode', e.target.value)} className={`${modalInputCls} ${formErrors.projectCode ? errCls : ''}`} />
+                  {formErrors.projectCode && <span className="text-[#dc3545] text-[11px]">{formErrors.projectCode}</span>}
+                </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Project Title<span className="text-[#dc3545] ml-0.5">*</span></label>
                   <input type="text" placeholder="Enter project title" value={formData.projectTitle} onChange={(e) => handleFormChange('projectTitle', e.target.value)} className={`${modalInputCls} ${formErrors.projectTitle ? errCls : ''}`} />
@@ -565,7 +875,7 @@ export default function CestPage() {
 
               <div className="flex flex-col gap-1">
                 <label className="text-[13px] font-semibold text-[#333]">Address</label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-4 gap-3">
                   <select value={formData.province} onChange={(e) => handleFormChange('province', e.target.value)} className={modalSelectCls}>
                     <option value="">Select Province</option>
                     {Object.keys(addressData).map(prov => (<option key={prov} value={prov}>{prov}</option>))}
@@ -575,9 +885,10 @@ export default function CestPage() {
                     {municipalities.map(mun => (<option key={mun} value={mun}>{mun}</option>))}
                   </select>
                   <select value={formData.barangay} onChange={(e) => handleFormChange('barangay', e.target.value)} disabled={!formData.municipality} className={modalSelectCls}>
-                    <option value="">Barangay / Village / Purok</option>
+                    <option value="">Select Barangay</option>
                     {barangays.map(brgy => (<option key={brgy} value={brgy}>{brgy}</option>))}
                   </select>
+                  <input type="text" placeholder="Villa / Purok" value={formData.villaPurok} onChange={(e) => handleFormChange('villaPurok', e.target.value)} className={modalInputCls} />
                 </div>
               </div>
 
@@ -591,27 +902,140 @@ export default function CestPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[13px] font-semibold text-[#333]">Beneficiaries</label>
-                  <input type="text" placeholder="Enter beneficiaries" value={formData.beneficiaries} onChange={(e) => handleFormChange('beneficiaries', e.target.value)} className={modalInputCls} />
+              <div className="flex flex-col gap-1">
+                <label className="text-[13px] font-semibold text-[#333]">Beneficiaries</label>
+                <input type="text" placeholder="Enter beneficiaries" value={formData.beneficiaries} onChange={(e) => handleFormChange('beneficiaries', e.target.value)} className={modalInputCls} />
+              </div>
+
+              {/* Type of Beneficiary - Dropdown */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[13px] font-semibold text-[#333]">Type of Beneficiary</label>
+                <select
+                  value={formData.typeOfBeneficiary}
+                  onChange={(e) => {
+                    if (e.target.value === '__add_new__') {
+                      setShowAddBeneficiaryType(true);
+                    } else {
+                      handleFormChange('typeOfBeneficiary', e.target.value);
+                    }
+                  }}
+                  className={modalSelectCls}
+                >
+                  <option value="">Select Type</option>
+                  {typeOfBeneficiaryOptions.map(option => (
+                    <option key={option.id} value={option.value}>{option.value}</option>
+                  ))}
+                  <option value="__add_new__" style={{ color: '#146184', fontWeight: 'bold' }}>+ Add New Type</option>
+                </select>
+              </div>
+
+              {/* Entry Point Multi-Select */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[13px] font-semibold text-[#333]">Entry Point</label>
+                <div className="flex flex-wrap gap-2 p-3 border border-[#d0d0d0] rounded-lg bg-[#f9f9f9] min-h-[48px]">
+                  {entryPointOptions.length === 0 && !showEntryPointInput && (
+                    <span className="text-[11px] text-[#999]">No entry points yet. Click &quot;Add Entry Point&quot; to create one.</span>
+                  )}
+                  {entryPointOptions.map(option => (
+                    <div key={option.id} className="relative group">
+                      <button
+                        type="button"
+                        onClick={() => toggleCategory(option.value)}
+                        className={`py-1.5 px-3 pr-6 rounded-full text-[11px] font-medium border transition-all duration-200 cursor-pointer ${
+                          selectedCategories.includes(option.value)
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-white text-[#555] border-[#d0d0d0] hover:border-primary hover:text-primary'
+                        }`}
+                      >
+                        {selectedCategories.includes(option.value) && <Icon icon="mdi:check" width={12} height={12} className="inline mr-1" />}
+                        {option.value}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeEntryPoint(option); }}
+                        className="absolute -top-1 -right-1 w-4 h-4 bg-[#dc3545] text-white rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-none"
+                        title="Remove entry point"
+                      >
+                        <Icon icon="mdi:close" width={10} height={10} />
+                      </button>
+                    </div>
+                  ))}
+                  {showEntryPointInput ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={newEntryPointInput}
+                        onChange={(e) => setNewEntryPointInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addNewEntryPoint(); } if (e.key === 'Escape') { setShowEntryPointInput(false); setNewEntryPointInput(''); } }}
+                        placeholder="Type entry point name..."
+                        className="py-1 px-2 border border-primary rounded text-[11px] w-[140px] focus:outline-none"
+                        autoFocus
+                      />
+                      <button type="button" onClick={addNewEntryPoint} className="w-6 h-6 bg-primary text-white rounded flex items-center justify-center border-none cursor-pointer hover:bg-accent">
+                        <Icon icon="mdi:check" width={14} height={14} />
+                      </button>
+                      <button type="button" onClick={() => { setShowEntryPointInput(false); setNewEntryPointInput(''); }} className="w-6 h-6 bg-[#f0f0f0] text-[#666] rounded flex items-center justify-center border-none cursor-pointer hover:bg-[#e0e0e0]">
+                        <Icon icon="mdi:close" width={14} height={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowEntryPointInput(true)}
+                      className="py-1.5 px-3 rounded-full text-[11px] font-medium border border-dashed border-[#999] text-[#666] bg-transparent hover:border-primary hover:text-primary transition-all duration-200 cursor-pointer flex items-center gap-1"
+                    >
+                      <Icon icon="mdi:plus" width={12} height={12} />
+                      Add Entry Point
+                    </button>
+                  )}
                 </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[13px] font-semibold text-[#333]">Type of Beneficiary</label>
-                  <select value={formData.typeOfBeneficiary} onChange={(e) => handleFormChange('typeOfBeneficiary', e.target.value)} className={modalSelectCls}>
-                    <option value="">Select Type</option>
-                    <option value="Individual">Individual</option>
-                    <option value="Organization">Organization</option>
-                    <option value="Community">Community</option>
-                    <option value="LGU">LGU</option>
-                    <option value="Cooperative">Cooperative</option>
-                    <option value="Association">Association</option>
-                  </select>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[13px] font-semibold text-[#333]">Partner LGU</label>
-                  <input type="text" placeholder="Enter partner LGU" value={formData.partnerLGU} onChange={(e) => handleFormChange('partnerLGU', e.target.value)} className={modalInputCls} />
-                </div>
+                {selectedCategories.length > 0 && (
+                  <span className="text-[11px] text-[#666]">Selected: {selectedCategories.join(', ')}</span>
+                )}
+              </div>
+
+              {/* Stakeholder - Multiple with Logo Upload */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[13px] font-semibold text-[#333]">Stakeholder</label>
+                {partnerLGUs.map((lgu, idx) => (
+                  <div key={idx} className={`flex items-center gap-2 ${idx > 0 ? 'mt-2' : ''}`}>
+                    <div className="w-10 h-10 rounded-full bg-[#f0f0f0] border border-[#d0d0d0] flex items-center justify-center overflow-hidden flex-shrink-0">
+                      {lgu.logoUrl ? (
+                        <img src={lgu.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+                      ) : (
+                        <Icon icon="mdi:domain" width={20} height={20} color="#999" />
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Enter stakeholder name"
+                      value={lgu.name}
+                      onChange={(e) => handlePartnerLGUNameChange(idx, e.target.value)}
+                      className={`${modalInputCls} flex-1`}
+                    />
+                    <label className="w-8 h-8 flex items-center justify-center bg-[#f5a623] text-white rounded-md cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0">
+                      <Icon icon="mdi:camera" width={16} height={16} />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => e.target.files?.[0] && handlePartnerLGULogoChange(idx, e.target.files[0])}
+                      />
+                    </label>
+                    {partnerLGUs.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removePartnerLGU(idx)}
+                        className="w-7 h-7 bg-[#f5f5f5] border border-[#ddd] rounded-full flex items-center justify-center cursor-pointer text-[#c62828] hover:bg-[#fce4ec] hover:border-[#c62828] transition-all flex-shrink-0"
+                      >
+                        <Icon icon="mdi:close" width={14} height={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" onClick={addPartnerLGU} className="inline-flex items-center gap-1 bg-transparent border-none text-accent text-xs font-semibold cursor-pointer p-0 py-1 mt-1 hover:text-accent-hover hover:underline">
+                  <Icon icon="mdi:plus" width={14} height={14} /> Add More Stakeholder
+                </button>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -621,11 +1045,50 @@ export default function CestPage() {
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Contact Number</label>
-                  <input type="text" placeholder="e.g. 09123456789" value={formData.contactNumber} onChange={(e) => handleFormChange('contactNumber', e.target.value.replace(/\D/g, '').slice(0, 11))} className={modalInputCls} />
+                  {contactNumbers.map((num, idx) => (
+                    <div key={idx} className={idx > 0 ? 'mt-2' : ''}>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          placeholder="e.g. 09123456789"
+                          value={num}
+                          onChange={(e) => handleContactChange(idx, e.target.value)}
+                          className={`${modalInputCls} flex-1 ${num.length > 0 ? (isContactValid(num) ? 'border-green-600! shadow-[0_0_0_2px_rgba(22,163,74,0.1)]!' : 'border-red-600! shadow-[0_0_0_2px_rgba(220,38,38,0.1)]!') : ''}`}
+                        />
+                        {contactNumbers.length > 1 && (
+                          <button type="button" onClick={() => removeContact(idx)} className="w-[22px] h-[22px] min-w-[22px] bg-[#f5f5f5] border border-[#ddd] rounded-full flex items-center justify-center cursor-pointer text-[#c62828] hover:bg-[#fce4ec] hover:border-[#c62828] transition-all">
+                            <Icon icon="mdi:close" width={14} height={14} />
+                          </button>
+                        )}
+                      </div>
+                      {num.length > 0 && !isContactValid(num) && <span className="text-red-600 text-[11px] mt-0.5 block">Must be 11 digits starting with 09</span>}
+                    </div>
+                  ))}
+                  <button type="button" onClick={addContact} className="inline-flex items-center gap-1 bg-transparent border-none text-accent text-xs font-semibold cursor-pointer p-0 py-1 mt-1 hover:text-accent-hover hover:underline">
+                    <Icon icon="mdi:plus" width={14} height={14} /> Add More
+                  </button>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Email Address</label>
-                  <input type="email" placeholder="Enter email address" value={formData.emailAddress} onChange={(e) => handleFormChange('emailAddress', e.target.value)} className={modalInputCls} />
+                  {emails.map((email, idx) => (
+                    <div key={idx} className={`flex items-center gap-1.5 ${idx > 0 ? 'mt-2' : ''}`}>
+                      <input
+                        type="email"
+                        placeholder="Enter email"
+                        value={email}
+                        onChange={(e) => handleEmailChange(idx, e.target.value)}
+                        className={`${modalInputCls} flex-1`}
+                      />
+                      {emails.length > 1 && (
+                        <button type="button" onClick={() => removeEmail(idx)} className="w-[22px] h-[22px] min-w-[22px] bg-[#f5f5f5] border border-[#ddd] rounded-full flex items-center justify-center cursor-pointer text-[#c62828] hover:bg-[#fce4ec] hover:border-[#c62828] transition-all">
+                          <Icon icon="mdi:close" width={14} height={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" onClick={addEmail} className="inline-flex items-center gap-1 bg-transparent border-none text-accent text-xs font-semibold cursor-pointer p-0 py-1 mt-1 hover:text-accent-hover hover:underline">
+                    <Icon icon="mdi:plus" width={14} height={14} /> Add More
+                  </button>
                 </div>
               </div>
 
@@ -644,11 +1107,8 @@ export default function CestPage() {
                     className={`${modalSelectCls} ${formErrors.programFunding ? errCls : ''}`}
                   >
                     <option value="">Select Program</option>
-                    <option value="CEST">CEST</option>
-                    <option value="LGIA">LGIA</option>
-                    <option value="SSCP">SSCP</option>
-                    {[...customPrograms, ...extraFundingOptions].map(prog => (
-                      <option key={prog} value={prog}>{prog}</option>
+                    {programFundingOptions.map(option => (
+                      <option key={option.id} value={option.value}>{option.value}</option>
                     ))}
                     <option value="__add_new__" style={{ color: '#146184', fontWeight: 'bold' }}>+ Add Other Funding</option>
                   </select>
@@ -670,10 +1130,14 @@ export default function CestPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Released Amount</label>
                   <input type="text" placeholder="e.g. 150000" value={formData.releasedAmount} onChange={(e) => handleFormChange('releasedAmount', e.target.value.replace(/[^\d.]/g, ''))} className={modalInputCls} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[13px] font-semibold text-[#333]">Counterpart Amount</label>
+                  <input type="text" placeholder="e.g. 50000" value={formData.counterpartAmount} onChange={(e) => handleFormChange('counterpartAmount', e.target.value.replace(/[^\d.]/g, ''))} className={modalInputCls} />
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Project Duration</label>
@@ -682,26 +1146,6 @@ export default function CestPage() {
                 <div className="flex flex-col gap-1">
                   <label className="text-[13px] font-semibold text-[#333]">Date of Release</label>
                   <input type="date" value={formData.dateOfRelease} onChange={(e) => handleFormChange('dateOfRelease', e.target.value)} className={modalInputCls} />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1 w-full">
-                <label className="text-[13px] font-semibold text-[#333]">Company Logo</label>
-                {existingLogoUrl && !formData.companyLogo && (
-                  <div className="flex items-center gap-3 p-3 bg-[#f9f9f9] border border-[#e0e0e0] rounded-lg mb-1">
-                    <img src={existingLogoUrl} alt="Current logo" className="w-10 h-10 rounded-full object-cover border border-[#d0d0d0]" />
-                    <div className="flex flex-col">
-                      <span className="text-[12px] font-medium text-[#333]">Current logo</span>
-                      <span className="text-[11px] text-[#888]">Upload a new image to replace it</span>
-                    </div>
-                  </div>
-                )}
-                <div className="relative">
-                  <input type="file" accept="image/*" onChange={handleLogoChange} id="cest-logo-upload" className="absolute opacity-0 w-0 h-0" />
-                  <label htmlFor="cest-logo-upload" className="flex flex-row items-center justify-center gap-2 p-3 border-2 border-dashed border-[#d0d0d0] rounded-[10px] cursor-pointer text-[#999] text-[13px] transition-all duration-200 hover:border-primary hover:text-primary hover:bg-[#f0f8ff]">
-                    <Icon icon="mdi:cloud-upload-outline" width={28} height={28} />
-                    <span>{formData.companyLogo ? formData.companyLogo.name : 'Click to upload logo'}</span>
-                  </label>
                 </div>
               </div>
 
@@ -724,26 +1168,77 @@ export default function CestPage() {
               type="text"
               value={newFundingName}
               onChange={(e) => setNewFundingName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { if (newFundingName.trim()) { setExtraFundingOptions(prev => prev.includes(newFundingName.trim()) ? prev : [...prev, newFundingName.trim()]); handleFormChange('programFunding', newFundingName.trim()); } setShowAddFunding(false); setNewFundingName(''); } }}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && newFundingName.trim() && !savingOption) {
+                  e.preventDefault();
+                  await addNewProgramFunding(newFundingName.trim());
+                  setShowAddFunding(false);
+                  setNewFundingName('');
+                }
+              }}
               placeholder="Enter funding source name"
               className="w-full px-3 py-2 border border-[#d0d0d0] rounded text-sm focus:outline-none focus:border-primary mb-4"
               autoFocus
+              disabled={savingOption}
             />
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => { setShowAddFunding(false); setNewFundingName(''); }} className="px-4 py-2 bg-gray-200 text-gray-600 rounded text-sm font-medium hover:bg-gray-300">Cancel</button>
+              <button type="button" onClick={() => { setShowAddFunding(false); setNewFundingName(''); }} disabled={savingOption} className="px-4 py-2 bg-gray-200 text-gray-600 rounded text-sm font-medium hover:bg-gray-300 disabled:opacity-50">Cancel</button>
               <button
                 type="button"
-                onClick={() => {
+                disabled={!newFundingName.trim() || savingOption}
+                onClick={async () => {
                   if (newFundingName.trim()) {
-                    setExtraFundingOptions(prev => prev.includes(newFundingName.trim()) ? prev : [...prev, newFundingName.trim()]);
-                    handleFormChange('programFunding', newFundingName.trim());
+                    await addNewProgramFunding(newFundingName.trim());
+                    setShowAddFunding(false);
+                    setNewFundingName('');
                   }
-                  setShowAddFunding(false);
-                  setNewFundingName('');
                 }}
-                className="px-4 py-2 bg-primary text-white rounded text-sm font-medium hover:bg-accent"
+                className="px-4 py-2 bg-primary text-white rounded text-sm font-medium hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Add
+                {savingOption ? 'Saving...' : 'Add'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Type of Beneficiary Modal */}
+      {showAddBeneficiaryType && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[1200]">
+          <div className="bg-white rounded-lg w-full max-w-[300px] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
+            <h3 className="text-base font-bold text-primary mb-3">Add Type of Beneficiary</h3>
+            <input
+              type="text"
+              value={newBeneficiaryTypeName}
+              onChange={(e) => setNewBeneficiaryTypeName(e.target.value)}
+              onKeyDown={async (e) => {
+                if (e.key === 'Enter' && newBeneficiaryTypeName.trim() && !savingOption) {
+                  e.preventDefault();
+                  await addNewBeneficiaryType(newBeneficiaryTypeName.trim());
+                  setShowAddBeneficiaryType(false);
+                  setNewBeneficiaryTypeName('');
+                }
+              }}
+              placeholder="Enter type name"
+              className="w-full px-3 py-2 border border-[#d0d0d0] rounded text-sm focus:outline-none focus:border-primary mb-4"
+              autoFocus
+              disabled={savingOption}
+            />
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => { setShowAddBeneficiaryType(false); setNewBeneficiaryTypeName(''); }} disabled={savingOption} className="px-4 py-2 bg-gray-200 text-gray-600 rounded text-sm font-medium hover:bg-gray-300 disabled:opacity-50">Cancel</button>
+              <button
+                type="button"
+                disabled={!newBeneficiaryTypeName.trim() || savingOption}
+                onClick={async () => {
+                  if (newBeneficiaryTypeName.trim()) {
+                    await addNewBeneficiaryType(newBeneficiaryTypeName.trim());
+                    setShowAddBeneficiaryType(false);
+                    setNewBeneficiaryTypeName('');
+                  }
+                }}
+                className="px-4 py-2 bg-primary text-white rounded text-sm font-medium hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingOption ? 'Saving...' : 'Add'}
               </button>
             </div>
           </div>
@@ -781,6 +1276,26 @@ export default function CestPage() {
                 Confirm Location
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmation && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[1300]">
+          <div className="bg-white rounded-lg w-full max-w-[350px] p-6 shadow-[0_4px_20px_rgba(0,0,0,0.2)] text-center">
+            <div className="w-16 h-16 mx-auto mb-4 bg-[#e8f5e9] rounded-full flex items-center justify-center">
+              <Icon icon="mdi:check-circle" width={40} height={40} className="text-[#2e7d32]" />
+            </div>
+            <h3 className="text-lg font-bold text-[#333] mb-2">Option Added Successfully</h3>
+            <p className="text-sm text-[#666] mb-5">{confirmationMessage}</p>
+            <button
+              type="button"
+              onClick={() => setShowConfirmation(false)}
+              className="px-6 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-accent transition-colors"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}
