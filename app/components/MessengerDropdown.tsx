@@ -275,10 +275,10 @@ export default function MessengerDropdown() {
           {/* Conversation list */}
           <div className="overflow-y-auto flex-1">
             {filteredConvs.map(conv => {
-              const name = getConvName(conv, meId);
-              const avatar = getConvAvatar(conv, meId);
+              const name = getConvName(conv, meId ?? '');
+              const avatar = getConvAvatar(conv, meId ?? '');
               const lastMsg = conv.messages[0];
-              const unreadConv = isConvUnread(conv, meId);
+              const unreadConv = isConvUnread(conv, meId ?? '');
 
               return (
                 <button
