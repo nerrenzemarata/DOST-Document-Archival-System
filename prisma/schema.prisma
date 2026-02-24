@@ -118,24 +118,30 @@ model ProjectDocument {
 }
 
 model CestProject {
-  id              String                @id @default(uuid()) @db.Uuid
-  code            String                @unique
-  projectTitle    String
-  location        String?
-  coordinates     String?
-  beneficiaries   String?
-  programFunding  String?
-  status          String?
-  approvedAmount  Float?
-  releasedAmount  Float?
-  projectDuration String?
-  staffAssigned   String?
-  year            String?
-  dateOfApproval  String?
-  companyLogoUrl  String?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
-  documents       CestProjectDocument[]
+  id                 String                @id @default(uuid()) @db.Uuid
+  code               String                @unique
+  projectTitle       String
+  location           String?
+  coordinates        String?
+  beneficiaries      String?
+  typeOfBeneficiary  String?
+  programFunding     String?
+  status             String?
+  approvedAmount     Float?
+  releasedAmount     Float?
+  projectDuration    String?
+  staffAssigned      String?
+  assigneeProfileUrl String?
+  year               String?
+  dateOfApproval     String?
+  companyLogoUrl     String?
+  partnerLGUs        Json?
+  categories         Json?
+  emails             Json?
+  contactNumbers     Json?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  documents          CestProjectDocument[]
 
   @@map("cest_projects")
 }
