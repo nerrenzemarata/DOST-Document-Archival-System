@@ -140,6 +140,7 @@ export default function CestPage() {
     province: '',
     municipality: '',
     barangay: '',
+    villaPurok: '',
     coordinates: '',
     beneficiaries: '',
     typeOfBeneficiary: '',
@@ -159,7 +160,38 @@ export default function CestPage() {
   const [partnerLGUs, setPartnerLGUs] = useState<Array<{ name: string; logoFile: File | null; logoUrl: string | null }>>([{ name: '', logoFile: null, logoUrl: null }]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
-  const categoryOptions = ['Food Processing', 'Metals and Engineering', 'Furniture', 'Gifts and Housewares', 'Agriculture', 'Aquaculture', 'ICT', 'Health Products', 'Packaging', 'Other'];
+  // Custom categories - loaded from localStorage and can be added by user
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [showCategoryInput, setShowCategoryInput] = useState(false);
+
+  // Load saved categories from localStorage on mount
+  useEffect(() => {
+    const savedCategories = localStorage.getItem('cestCategoryOptions');
+    if (savedCategories) {
+      setCategoryOptions(JSON.parse(savedCategories));
+    }
+  }, []);
+
+  // Save categories to localStorage when they change
+  const addNewCategory = () => {
+    const trimmed = newCategoryInput.trim();
+    if (trimmed && !categoryOptions.includes(trimmed)) {
+      const updated = [...categoryOptions, trimmed];
+      setCategoryOptions(updated);
+      localStorage.setItem('cestCategoryOptions', JSON.stringify(updated));
+      setSelectedCategories(prev => [...prev, trimmed]);
+    }
+    setNewCategoryInput('');
+    setShowCategoryInput(false);
+  };
+
+  const removeCategory = (cat: string) => {
+    const updated = categoryOptions.filter(c => c !== cat);
+    setCategoryOptions(updated);
+    localStorage.setItem('cestCategoryOptions', JSON.stringify(updated));
+    setSelectedCategories(prev => prev.filter(c => c !== cat));
+  };
 
   const [existingLogoUrl, setExistingLogoUrl] = useState<string | null>(null);
   const existingLogoUrlRef = useRef<string | null>(null);
@@ -170,7 +202,7 @@ export default function CestPage() {
 
   const resetForm = () => {
     setFormData({
-      projectCode: '', projectTitle: '', projectDate: '', province: '', municipality: '', barangay: '', coordinates: '',
+      projectCode: '', projectTitle: '', projectDate: '', province: '', municipality: '', barangay: '', villaPurok: '', coordinates: '',
       beneficiaries: '', typeOfBeneficiary: '', cooperatorName: '',
       programFunding: '', status: '',
       approvedAmount: '', releasedAmount: '', projectDuration: '', dateOfRelease: '',
@@ -180,6 +212,8 @@ export default function CestPage() {
     setContactNumbers(['']);
     setPartnerLGUs([{ name: '', logoFile: null, logoUrl: null }]);
     setSelectedCategories([]);
+    setShowCategoryInput(false);
+    setNewCategoryInput('');
     setFormErrors({});
     setSaveError('');
     setEditingProjectId(null);
@@ -358,14 +392,26 @@ export default function CestPage() {
 
   const openEditModal = (project: CestProject) => {
     const parts = project.location?.split(', ') ?? [];
-    const barangay = parts[0] ?? '';
-    const municipality = parts[1] ?? '';
-    const province = parts[2] ?? '';
+    // Location format: "VillaPurok, Barangay, Municipality, Province" or "Barangay, Municipality, Province"
+    let villaPurok = '';
+    let barangay = '';
+    let municipality = '';
+    let province = '';
+    if (parts.length >= 4) {
+      villaPurok = parts[0] ?? '';
+      barangay = parts[1] ?? '';
+      municipality = parts[2] ?? '';
+      province = parts[3] ?? '';
+    } else {
+      barangay = parts[0] ?? '';
+      municipality = parts[1] ?? '';
+      province = parts[2] ?? '';
+    }
     setFormData({
       projectCode: project.code ?? '',
       projectTitle: project.projectTitle,
       projectDate: project.dateOfApproval ? project.dateOfApproval.slice(0, 10) : '',
-      province, municipality, barangay,
+      province, municipality, barangay, villaPurok,
       coordinates: project.coordinates ?? '',
       beneficiaries: project.beneficiaries ?? '',
       typeOfBeneficiary: project.typeOfBeneficiary ?? '',
@@ -416,7 +462,8 @@ export default function CestPage() {
         .filter(p => p.name.trim())
         .map(p => ({ name: p.name, logoUrl: p.logoUrl }));
 
-      const locationParts = [formData.barangay, formData.municipality, formData.province].filter(Boolean);
+      // Location format: "VillaPurok, Barangay, Municipality, Province" if villaPurok is provided
+      const locationParts = [formData.villaPurok, formData.barangay, formData.municipality, formData.province].filter(Boolean);
       const location = locationParts.length > 0 ? locationParts.join(', ') : null;
       const payload: Record<string, unknown> = {
         projectTitle: formData.projectTitle,
@@ -710,7 +757,7 @@ export default function CestPage() {
 
               <div className="flex flex-col gap-1">
                 <label className="text-[13px] font-semibold text-[#333]">Address</label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-4 gap-3">
                   <select value={formData.province} onChange={(e) => handleFormChange('province', e.target.value)} className={modalSelectCls}>
                     <option value="">Select Province</option>
                     {Object.keys(addressData).map(prov => (<option key={prov} value={prov}>{prov}</option>))}
@@ -720,9 +767,10 @@ export default function CestPage() {
                     {municipalities.map(mun => (<option key={mun} value={mun}>{mun}</option>))}
                   </select>
                   <select value={formData.barangay} onChange={(e) => handleFormChange('barangay', e.target.value)} disabled={!formData.municipality} className={modalSelectCls}>
-                    <option value="">Barangay / Village / Purok</option>
+                    <option value="">Select Barangay</option>
                     {barangays.map(brgy => (<option key={brgy} value={brgy}>{brgy}</option>))}
                   </select>
+                  <input type="text" placeholder="Villa / Purok" value={formData.villaPurok} onChange={(e) => handleFormChange('villaPurok', e.target.value)} className={modalInputCls} />
                 </div>
               </div>
 
@@ -758,22 +806,62 @@ export default function CestPage() {
               {/* Category Multi-Select */}
               <div className="flex flex-col gap-1">
                 <label className="text-[13px] font-semibold text-[#333]">Category</label>
-                <div className="flex flex-wrap gap-2 p-3 border border-[#d0d0d0] rounded-lg bg-[#f9f9f9]">
+                <div className="flex flex-wrap gap-2 p-3 border border-[#d0d0d0] rounded-lg bg-[#f9f9f9] min-h-[48px]">
+                  {categoryOptions.length === 0 && !showCategoryInput && (
+                    <span className="text-[11px] text-[#999]">No categories yet. Click &quot;Add Category&quot; to create one.</span>
+                  )}
                   {categoryOptions.map(cat => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => toggleCategory(cat)}
-                      className={`py-1.5 px-3 rounded-full text-[11px] font-medium border transition-all duration-200 cursor-pointer ${
-                        selectedCategories.includes(cat)
-                          ? 'bg-primary text-white border-primary'
-                          : 'bg-white text-[#555] border-[#d0d0d0] hover:border-primary hover:text-primary'
-                      }`}
-                    >
-                      {selectedCategories.includes(cat) && <Icon icon="mdi:check" width={12} height={12} className="inline mr-1" />}
-                      {cat}
-                    </button>
+                    <div key={cat} className="relative group">
+                      <button
+                        type="button"
+                        onClick={() => toggleCategory(cat)}
+                        className={`py-1.5 px-3 pr-6 rounded-full text-[11px] font-medium border transition-all duration-200 cursor-pointer ${
+                          selectedCategories.includes(cat)
+                            ? 'bg-primary text-white border-primary'
+                            : 'bg-white text-[#555] border-[#d0d0d0] hover:border-primary hover:text-primary'
+                        }`}
+                      >
+                        {selectedCategories.includes(cat) && <Icon icon="mdi:check" width={12} height={12} className="inline mr-1" />}
+                        {cat}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeCategory(cat); }}
+                        className="absolute -top-1 -right-1 w-4 h-4 bg-[#dc3545] text-white rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer border-none"
+                        title="Remove category"
+                      >
+                        <Icon icon="mdi:close" width={10} height={10} />
+                      </button>
+                    </div>
                   ))}
+                  {showCategoryInput ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="text"
+                        value={newCategoryInput}
+                        onChange={(e) => setNewCategoryInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addNewCategory(); } if (e.key === 'Escape') { setShowCategoryInput(false); setNewCategoryInput(''); } }}
+                        placeholder="Type category name..."
+                        className="py-1 px-2 border border-primary rounded text-[11px] w-[140px] focus:outline-none"
+                        autoFocus
+                      />
+                      <button type="button" onClick={addNewCategory} className="w-6 h-6 bg-primary text-white rounded flex items-center justify-center border-none cursor-pointer hover:bg-accent">
+                        <Icon icon="mdi:check" width={14} height={14} />
+                      </button>
+                      <button type="button" onClick={() => { setShowCategoryInput(false); setNewCategoryInput(''); }} className="w-6 h-6 bg-[#f0f0f0] text-[#666] rounded flex items-center justify-center border-none cursor-pointer hover:bg-[#e0e0e0]">
+                        <Icon icon="mdi:close" width={14} height={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowCategoryInput(true)}
+                      className="py-1.5 px-3 rounded-full text-[11px] font-medium border border-dashed border-[#999] text-[#666] bg-transparent hover:border-primary hover:text-primary transition-all duration-200 cursor-pointer flex items-center gap-1"
+                    >
+                      <Icon icon="mdi:plus" width={12} height={12} />
+                      Add Category
+                    </button>
+                  )}
                 </div>
                 {selectedCategories.length > 0 && (
                   <span className="text-[11px] text-[#666]">Selected: {selectedCategories.join(', ')}</span>
